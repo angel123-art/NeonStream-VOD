@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Catálogo y streaming de series y películas estilo Netflix con interacción en tiempo real.">
+    <title>NeonStream | Series y Películas</title>
+    
+    <!-- Favicon de NeonStream -->
+    <link rel="icon" type="img/jpeg" href="img/favicon.jpg">
+
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navbar Navigation: Netflix Style -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="nav-left">
+                <div class="logo" id="logo-home">
+                    <span class="neon-text">Neon</span>Stream
+                </div>
+                <!-- Main Navbar Links -->
+                <nav class="main-nav" id="main-nav">
+                    <button class="nav-link active" data-view="home">Inicio</button>
+                    <button class="nav-link" data-view="movies">Películas</button>
+                    <button class="nav-link" data-view="series">Series</button>
+                    <button class="nav-link" data-view="anime">Anime</button>
+                    <button class="nav-link" data-view="kdrama">K-Drama</button>
+                </nav>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Buscar título...">
+                <button id="search-btn" aria-label="Buscar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+        <!-- Hero Banner Netflix Style -->
+        <section id="hero-section" class="hero hidden">
+            <!-- Interfaz de Banner Integrada Estática para Fade -->
+            <div class="container-fluid hero-content">
+                <h1 class="hero-title" id="hero-title">Título</h1>
+                <p class="hero-overview" id="hero-overview">Sinopsis</p>
+                <div class="hero-buttons">
+                    <button class="hero-btn" id="hero-play-btn" data-id="">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        Ver Ahora
+                    </button>
+                    <button class="hero-btn secondary" id="hero-trailer-btn" data-id="">
+                        🎬 Ver Tráiler
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Catalog Section -->
+        <section id="catalog-section" class="active-view">
+            <div class="container-fluid">
+                <!-- Genre Filters for general grids (hidden on home) -->
+                <div class="genre-filters hidden" id="genre-filters">
+                    <button class="genre-btn active" data-id="">Todo</button>
+                    <button class="genre-btn" data-id="28">Acción</button>
+                    <button class="genre-btn" data-id="35">Comedia</button>
+                    <button class="genre-btn" data-id="18">Drama</button>
+                    <button class="genre-btn" data-id="27">Terror</button>
+                    <button class="genre-btn" data-id="878">Ciencia Ficción</button>
+                </div>
+
+                <div id="loading-spinner" class="spinner hidden"></div>
+                
+                <h1 id="grid-title" class="section-title hidden">Catálogo</h1>
+                
+                <!-- Dynamic Content Injection (Rows mapped or Grids mapped here) -->
+                <div id="dynamic-catalog">
+                    <!-- Javascript will inject .row-container or .dynamic-grid based on View -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Player Section -->
+        <section id="player-section" class="hidden-view">
+            <div class="container player-container">
+                <div class="player-header">
+                    <button id="back-btn" class="btn-neon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        Volver
+                    </button>
+                    <div class="movie-info-header">
+                        <h2 id="player-title">Título</h2>
+                        <span id="player-release-date" class="badge">2024</span>
+                        <span id="player-rating" class="badge-rating">⭐ 8.5</span>
+                        <!-- Universal Trailer Button -->
+                        <button class="hero-btn secondary" id="details-trailer-btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; border-radius: 20px; font-weight: 500;">
+                           🎬 Tráiler
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Mandatory empty wrapper as requested -->
+                <div id="video-container" class="video-wrapper"></div>
+                
+                <!-- Opciones de Servidor Multilink -->
+                <div class="server-options" id="server-options">
+                    <button class="server-btn active" data-server="1">🎬 Servidor 1</button>
+                    <button class="server-btn" data-server="2">🎬 Servidor 2</button>
+                </div>
+                
+                <div class="player-details">
+                    <!-- Season and Episode Dropdowns (Only visible for TV) -->
+                    <div id="tv-controls" class="tv-controls hidden">
+                        <div class="select-group">
+                            <label for="season-select">Temporada</label>
+                            <select id="season-select" class="neon-select"></select>
+                        </div>
+                        <div class="select-group">
+                            <label for="episode-select">Episodio</label>
+                            <select id="episode-select" class="neon-select"></select>
+                        </div>
+                    </div>
+
+                    <h3 class="overview-title">Sinopsis</h3>
+                    <p id="player-overview" class="overview-text">Descripción...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Trailer Modal -->
+    <div id="trailer-modal" class="trailer-modal hidden">
+        <div class="trailer-content">
+            <button id="close-modal-btn" class="close-modal-btn">&times;</button>
+            <div id="trailer-video-container" class="trailer-wrapper"></div>
+            <!-- Alternativa anti-bloqueo YouTube -->
+            <div id="trailer-fallback" class="trailer-fallback hidden"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container-fluid">
+            <p>&copy; 2026 NeonStream - Desarrollado por Angel Andres Espinoza</p>
+            <p class="disclaimer">Este sitio no almacena ningún archivo en su servidor. Todo el contenido es provisto por terceros no afiliados.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

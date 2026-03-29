@@ -1,0 +1,766 @@
+/* CSS Variables for Web App Theming */
+:root {
+    --bg-color: #0f0f0f;
+    --surface-color: #1a1a1a;
+    --surface-hover: #252525;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    
+    /* Neon Accents based on #0f0f0f */
+    --neon-blue: #00f3ff;
+    --neon-purple: #bc13fe;
+    --neon-blue-glow: rgba(0, 243, 255, 0.4);
+    --neon-purple-glow: rgba(188, 19, 254, 0.4);
+    
+    --transition-speed: 0.3s;
+    --border-radius: 12px;
+}
+
+/* Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Container updates for fluid edge-to-edge Netflix look */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.container-fluid {
+    width: 100%;
+    padding: 0 4%;
+}
+
+/* UI Typography & Micro-animations */
+.neon-text {
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px var(--neon-blue-glow), 0 0 20px var(--neon-blue-glow);
+}
+
+.section-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+    padding-left: 1rem;
+    border-left: 5px solid var(--neon-purple);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.section-title.hidden {
+    display: none;
+}
+
+/* Navbar Layer */
+.navbar {
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-container {
+    width: 100%;
+    padding: 1rem 4%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: transform var(--transition-speed);
+}
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.main-nav {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.nav-link {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color var(--transition-speed);
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--text-primary);
+    text-shadow: 0 0 10px rgba(255,255,255,0.4);
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    background: var(--surface-color);
+    border-radius: 30px;
+    padding: 0.5rem 1.5rem;
+    border: 1px solid rgba(255,255,255, 0.1);
+    transition: all var(--transition-speed);
+}
+
+.search-container:focus-within {
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+}
+
+#search-input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    outline: none;
+    width: 250px;
+    transition: width var(--transition-speed);
+}
+
+#search-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-speed);
+}
+
+#search-btn:hover {
+    color: var(--neon-blue);
+}
+
+/* Main Layout & Views */
+main {
+    flex: 1;
+    padding-bottom: 3rem;
+}
+
+.active-view {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+.hidden-view {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Netflix Hero Banner */
+.hero {
+    position: relative;
+    width: 100%;
+    height: 75vh;
+    min-height: 500px;
+    background-size: cover;
+    background-position: center top;
+    display: flex;
+    align-items: flex-end;
+    margin-top: -90px;
+    padding-bottom: 5rem;
+    transition: opacity 0.5s ease-in-out, background-image 1s ease-in-out;
+}
+.hero.hidden {
+    display: none;
+}
+.hero.fade {
+    opacity: 0;
+}
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    /* Degradado oscuro para fundirlo con el background #0f0f0f */
+    background: linear-gradient(to bottom, rgba(15,15,15,0.85) 0%, rgba(15,15,15,0.1) 30%, #0f0f0f 100%);
+    z-index: 1;
+}
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+}
+.hero-title {
+    font-size: 4rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+    line-height: 1.1;
+}
+.hero-overview {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.hero-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--text-primary);
+    color: #000;
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 0.8rem 2rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(255,255,255,0.2);
+    transition: all var(--transition-speed);
+}
+.hero-btn:hover {
+    transform: scale(1.05);
+    background: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 25px var(--neon-purple-glow);
+}
+.hero-btn.secondary {
+    background: rgba(60,60,60,0.6);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: none;
+}
+.hero-btn.secondary:hover {
+    background: rgba(100,100,100,0.8);
+    border-color: white;
+    box-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+
+/* Genre Filters Layout */
+.genre-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.genre-filters.hidden {
+    display: none;
+}
+
+.genre-btn {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1.25rem;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.genre-btn:hover {
+    border-color: var(--neon-purple);
+    color: var(--neon-purple);
+    box-shadow: 0 0 10px var(--neon-purple-glow);
+}
+
+.genre-btn.active {
+    background: rgba(188, 19, 254, 0.1);
+    border-color: var(--neon-purple);
+    color: var(--neon-purple);
+    box-shadow: 0 0 15px var(--neon-purple-glow);
+}
+
+/* Movie Layouts (Netflix Rows & Grids) */
+.row-container {
+    margin-bottom: 3.5rem;
+}
+
+.row-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+/* Netflix Slider Arrows Wrappers */
+.row-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.slider-btn {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 60px;
+    background: rgba(15,15,15,0.7);
+    color: var(--text-primary);
+    border: none;
+    font-size: 2.5rem;
+    z-index: 20;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-speed), color var(--transition-speed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.row-wrapper:hover .slider-btn {
+    opacity: 1;
+}
+.slider-btn.left { 
+    left: 0; 
+    background: linear-gradient(to right, rgba(15,15,15,0.9) 20%, transparent); 
+}
+.slider-btn.right { 
+    right: 0; 
+    background: linear-gradient(to left, rgba(15,15,15,0.9) 20%, transparent); 
+}
+.slider-btn:hover {
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+.movie-row {
+    display: flex;
+    flex: 1;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+    scroll-behavior: smooth;
+    /* Hide scrollbars */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.movie-row::-webkit-scrollbar {
+    display: none;
+}
+
+.dynamic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 2rem;
+}
+
+/* Shared Movie Card */
+.movie-card {
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: all var(--transition-speed);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* For Rows specifically */
+    flex: 0 0 calc(100% / 6 - 1rem); 
+    min-width: 180px;
+    max-width: 260px;
+}
+
+/* Override flex behavior inside Grid */
+.dynamic-grid .movie-card {
+    flex: auto;
+    max-width: none;
+}
+
+.movie-card:hover {
+    transform: translateY(-8px) scale(1.03); /* Efecto extra Scale en Hover */
+    box-shadow: 0 10px 30px var(--neon-purple-glow);
+    border-color: rgba(188, 19, 254, 0.3);
+    z-index: 10;
+}
+
+.poster-container {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+}
+
+.poster-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s;
+}
+
+.movie-card:hover .poster-container img {
+    transform: scale(1.08);
+}
+
+.play-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 15, 15, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--transition-speed);
+}
+
+.movie-card:hover .play-overlay {
+    opacity: 1;
+}
+
+.play-overlay svg {
+    width: 60px;
+    height: 60px;
+    color: var(--neon-blue);
+    filter: drop-shadow(0 0 10px var(--neon-blue-glow));
+    transform: scale(0.8);
+    transition: transform var(--transition-speed);
+}
+
+.movie-card:hover .play-overlay svg {
+    transform: scale(1);
+}
+
+.movie-info {
+    padding: 1rem;
+}
+
+.movie-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.movie-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* Player Section */
+.player-container {
+    max-width: 1200px;
+}
+
+.player-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.btn-neon {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.btn-neon:hover {
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    box-shadow: 0 0 15px var(--neon-blue-glow);
+    background: rgba(0, 243, 255, 0.05);
+}
+
+.movie-info-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+#player-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+.badge, .badge-rating {
+    background: var(--surface-hover);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.badge-rating {
+    background: rgba(255, 215, 0, 0.1);
+    color: #ffd700;
+}
+
+.video-wrapper {
+    width: 100%;
+    height: 450px; /* Altura explícita solicitada */
+    background-color: #000;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(188, 19, 254, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.video-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+}
+
+/* Server Selection Buttons */
+.server-options {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+}
+
+.server-btn {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.server-btn:hover {
+    background: rgba(188, 19, 254, 0.2);
+    border-color: var(--neon-purple);
+}
+
+.server-btn.active {
+    background: var(--neon-purple);
+    border-color: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 15px var(--neon-purple-glow);
+}
+
+/* TV Controls inside Player Detail */
+.player-details {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.tv-controls {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-wrap: wrap;
+}
+
+.tv-controls.hidden {
+    display: none;
+}
+
+.select-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.select-group label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.neon-select {
+    background: var(--bg-color);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+.neon-select:focus, .neon-select:hover {
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 10px var(--neon-blue-glow);
+}
+
+/* Other Utilities */
+.overview-title {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--neon-blue);
+}
+
+.overview-text {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    font-size: 1.1rem;
+}
+
+/* Spinner */
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--surface-hover);
+    border-top: 4px solid var(--neon-purple);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 3rem auto;
+}
+.spinner.hidden { display: none; }
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Trailer Modal Overlay */
+.trailer-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity var(--transition-speed);
+}
+.trailer-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.trailer-content {
+    position: relative;
+    width: 90%;
+    max-width: 1000px;
+    background: var(--bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 50px var(--neon-purple-glow);
+    padding: 2px;
+}
+.trailer-wrapper {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.trailer-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+.close-modal-btn {
+    position: absolute;
+    top: -45px; right: 0;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2.5rem;
+    font-weight: 300;
+    cursor: pointer;
+    line-height: 1;
+    transition: color var(--transition-speed);
+}
+.close-modal-btn:hover {
+    color: var(--neon-purple);
+    text-shadow: 0 0 10px var(--neon-purple);
+}
+
+.trailer-fallback {
+    text-align: center;
+    margin-top: 1rem;
+}
+.trailer-fallback.hidden {
+    display: none;
+}
+
+footer {
+    background-color: #0a0a0a;
+    padding: 2rem 0;
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+footer p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .nav-left {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    .main-nav {
+        flex-wrap: wrap;
+    }
+    
+    #search-input { width: 100%; }
+    
+    .movie-card {
+        flex: 0 0 calc(50% - 1rem);
+    }
+}
