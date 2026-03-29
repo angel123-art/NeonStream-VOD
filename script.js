@@ -19,6 +19,7 @@ const elements = {
     loadingSpinner: document.getElementById('loading-spinner'),
     gridTitle: document.getElementById('grid-title'),
     genreFilters: document.getElementById('genre-filters'),
+    paginationContainer: document.getElementById('pagination-container'),
     mainNav: document.getElementById('main-nav'),
     logoHome: document.getElementById('logo-home'),
     serverOptions: document.getElementById('server-options'),
@@ -237,6 +238,7 @@ function switchCategory(view) {
     
     elements.searchInput.value = '';
     elements.dynamicCatalog.innerHTML = '';
+    if (elements.paginationContainer) elements.paginationContainer.classList.add('hidden');
     elements.heroSection.classList.add('hidden'); // Esconder Hero por defecto a menos en Inicio
     
     // Hide filters unless in 'movies' (since others have specific logic or rows)
@@ -311,15 +313,20 @@ async function loadHomeRows() {
 }
 
 // Grid fallback Logic
-async function fetchAndRenderGrid(url, forcedMediaType) {
+async function fetchAndRenderGrid(url, forcedMediaType, page = 1) {
     toggleSpinner(true);
+    // Eliminar &page si existe para que no se duplique y agregar dinámicamente
+    const baseUrl = url.replace(/&page=\d+/, '');
+    const finalUrl = `${baseUrl}&page=${page}`;
+    
     try {
-        const response = await fetch(url);
+        const response = await fetch(finalUrl);
         const data = await response.json();
         const mediaArr = overrideMediaType(data.results, forcedMediaType);
         
         if (mediaArr.length === 0) {
             elements.dynamicCatalog.innerHTML = '<p style="color:red;width:100%;text-align:center;">Sin resultados.</p>';
+            if(elements.paginationContainer) elements.paginationContainer.classList.add('hidden');
             return;
         }
 
@@ -328,11 +335,56 @@ async function fetchAndRenderGrid(url, forcedMediaType) {
         htmlGrid += '</div>';
 
         elements.dynamicCatalog.innerHTML = htmlGrid;
+        
+        // Cargar paginador
+        if(data.total_pages > 1) {
+            renderPagination(data.page, data.total_pages, baseUrl, forcedMediaType);
+        } else {
+            if(elements.paginationContainer) elements.paginationContainer.classList.add('hidden');
+        }
+
     } catch (e) {
         elements.dynamicCatalog.innerHTML = '<p style="color:red;">Error en catálogo.</p>';
+        if(elements.paginationContainer) elements.paginationContainer.classList.add('hidden');
     } finally {
         toggleSpinner(false);
     }
+}
+
+function renderPagination(currentPage, totalPages, baseUrl, forcedMediaType) {
+    if (!elements.paginationContainer) return;
+    elements.paginationContainer.classList.remove('hidden');
+    
+    // TMDb API max pages is 500
+    const maxPages = Math.min(totalPages, 500); 
+    let html = '';
+    
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(maxPages, currentPage + 2);
+    
+    if (currentPage > 1) {
+        html += `<button class="page-btn" data-page="${currentPage - 1}">Anterior</button>`;
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+    }
+    
+    if (currentPage < maxPages) {
+        html += `<button class="page-btn" data-page="${currentPage + 1}">Siguiente</button>`;
+    }
+    
+    elements.paginationContainer.innerHTML = html;
+    
+    const buttons = elements.paginationContainer.querySelectorAll('.page-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+             const targetPage = parseInt(btn.dataset.page);
+             fetchAndRenderGrid(baseUrl, forcedMediaType, targetPage);
+             // Regresar scroll al inicio del catálogo para ver resultados
+             elements.catalogSection.scrollIntoView({ behavior: 'smooth' });
+        });
+    });
 }
 
 // Internal Template Generators
@@ -589,17 +641,50 @@ async function openTrailerModal(id, type) {
 
 function loadVideoIframe(id, type, serverId, sNum, eNum) {
     if (!id) return;
+    
+    // Limpieza: Asegúrate de que al cambiar de servidor, el iframe se limpie antes de cargar el nuevo para evitar que se mezclen audios
+    elements.videoContainer.innerHTML = '';
+    
     let url = '';
     
-    if (type === 'tv') {
-        const domain = serverId === '1' ? 'vidsrc.me' : 'vidsrc.pro';
-        url = `https://${domain}/embed/tv?tmdb=${id}&sea=${sNum}&epi=${eNum}`;
-    } else {
-        const domain = serverId === '1' ? 'vidsrc.me' : 'vidsrc.pro';
-        url = `https://${domain}/embed/movie/${id}`;
+    switch (serverId) {
+        case '1':
+            // Servidor 1: vidsrc.icu (Principal)
+            if (type === 'tv') {
+                url = `https://vidsrc.icu/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
+            } else {
+                url = `https://vidsrc.icu/embed/movie/${id}?lang=es`;
+            }
+            break;
+        case '2':
+            // Servidor 2: player.autoembed.to
+            if (type === 'tv') {
+                url = `https://player.autoembed.to/tv/${id}/${sNum}/${eNum}?lang=es`;
+            } else {
+                url = `https://player.autoembed.to/movie/${id}?lang=es`;
+            }
+            break;
+        case '3':
+            // Servidor 3: embed.su
+            if (type === 'tv') {
+                url = `https://embed.su/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
+            } else {
+                url = `https://embed.su/embed/movie/${id}?lang=es`;
+            }
+            break;
+        default:
+            if (type === 'tv') {
+                url = `https://vidsrc.icu/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
+            } else {
+                url = `https://vidsrc.icu/embed/movie/${id}?lang=es`;
+            }
     }
     
-    elements.videoContainer.innerHTML = `<iframe src="${url}" width="100%" height="100%" frameborder="0" scrolling="no" allowfullscreen></iframe>`;
+    // Pequeño retardo para asegurar que el DOM eliminó el iframe anterior y cortó el audio
+    setTimeout(() => {
+        const iframeHtml = `<iframe id="reproductor-iframe" src="${url}" width="100%" height="100%" frameborder="0" scrolling="no" allowfullscreen></iframe>`;
+        elements.videoContainer.innerHTML = iframeHtml;
+    }, 50);
 }
 
 function pushPlayerUrl(s, e) {
@@ -632,7 +717,7 @@ async function handleSearch() {
     clearUrlParam();
     
     // TMDb Search Multi returns both movies and tvs.
-    fetchAndRenderGrid(`${TMDB_BASE_URL}/search/multi?api_key=${API_KEY}&language=es-MX&query=${encodeURIComponent(query)}&page=1`, 'movie');
+    fetchAndRenderGrid(`${TMDB_BASE_URL}/search/multi?api_key=${API_KEY}&language=es-MX&query=${encodeURIComponent(query)}`, 'movie');
 }
 
 async function handleGenreFilter(button) {
