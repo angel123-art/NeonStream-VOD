@@ -747,6 +747,42 @@ footer p {
     margin-bottom: 0.5rem;
 }
 
+/* Paginación */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+}
+.pagination.hidden {
+    display: none;
+}
+.page-btn {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+.page-btn:hover {
+    background: rgba(188, 19, 254, 0.1);
+    border-color: var(--neon-purple);
+    color: var(--neon-purple);
+    box-shadow: 0 0 10px var(--neon-purple-glow);
+}
+.page-btn.active {
+    background: var(--neon-purple);
+    border-color: var(--neon-purple);
+    color: white;
+    box-shadow: 0 0 15px var(--neon-purple-glow);
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .nav-left {
