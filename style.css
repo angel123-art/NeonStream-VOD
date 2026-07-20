@@ -539,16 +539,68 @@ main {
     color: #ffd700;
 }
 
+.video-stage {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
 .video-wrapper {
     width: 100%;
-    height: 450px; /* Altura explícita solicitada */
+    height: 450px;
     background-color: #000;
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 20px rgba(188, 19, 254, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.05);
     position: relative;
-    margin-bottom: 1.5rem;
+}
+
+.video-stage:fullscreen,
+.video-stage:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-stage:fullscreen .video-wrapper,
+.video-stage:-webkit-full-screen .video-wrapper {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.fullscreen-btn {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(15, 15, 15, 0.85);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    backdrop-filter: blur(8px);
+}
+
+.fullscreen-btn:hover,
+.fullscreen-btn.is-active {
+    background: rgba(188, 19, 254, 0.35);
+    border-color: var(--neon-purple);
+    box-shadow: 0 0 12px var(--neon-purple-glow);
+}
+
+.fullscreen-btn svg.hidden {
+    display: none;
 }
 
 .video-wrapper iframe {
@@ -556,6 +608,16 @@ main {
     height: 100%;
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
+}
+
+.player-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 1rem;
 }
 
 /* Server Selection Buttons */
@@ -588,6 +650,14 @@ main {
     border-color: var(--neon-purple);
     color: white;
     box-shadow: 0 0 15px var(--neon-purple-glow);
+}
+
+.server-hint {
+    margin-top: 0.75rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
 }
 
 /* TV Controls inside Player Detail */

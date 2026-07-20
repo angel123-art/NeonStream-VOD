@@ -32,6 +32,8 @@ const elements = {
     // Player
     backBtn: document.getElementById('back-btn'),
     videoContainer: document.getElementById('video-container'),
+    videoStage: document.getElementById('video-stage'),
+    fullscreenBtn: document.getElementById('fullscreen-btn'),
     playerTitle: document.getElementById('player-title'),
     playerReleaseDate: document.getElementById('player-release-date'),
     playerRating: document.getElementById('player-rating'),
@@ -86,13 +88,13 @@ function setupEventListeners() {
     // Server Choice
     if (elements.serverOptions) {
         elements.serverOptions.addEventListener('click', (e) => {
-            if (e.target.classList.contains('server-btn')) {
-                updateServerActiveState(e.target);
-                const serverId = e.target.dataset.server;
-                const sea = elements.seasonSelect.value || '1';
-                const epi = elements.episodeSelect.value || '1';
-                loadVideoIframe(currentMediaId, currentMediaType, serverId, sea, epi);
-            }
+            const serverBtn = e.target.closest('.server-btn');
+            if (!serverBtn) return;
+            updateServerActiveState(serverBtn);
+            const serverId = serverBtn.dataset.server;
+            const sea = elements.seasonSelect.value || '1';
+            const epi = elements.episodeSelect.value || '1';
+            loadVideoIframe(currentMediaId, currentMediaType, serverId, sea, epi);
         });
     }
 
@@ -108,9 +110,15 @@ function setupEventListeners() {
         triggerIframeUpdate();
     });
 
+    setupFullscreenControls();
+
     // Go Back
     elements.backBtn.addEventListener('click', () => {
-        elements.videoContainer.innerHTML = ''; 
+        if (getFullscreenElement()) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+        elements.videoContainer.innerHTML = '';
         clearUrlParam();
         showView('catalog');
         
@@ -639,52 +647,104 @@ async function openTrailerModal(id, type) {
     }
 }
 
-function loadVideoIframe(id, type, serverId, sNum, eNum) {
-    if (!id) return;
-    
-    // Limpieza: Asegúrate de que al cambiar de servidor, el iframe se limpie antes de cargar el nuevo para evitar que se mezclen audios
-    elements.videoContainer.innerHTML = '';
-    
-    let url = '';
-    
+function buildEmbedUrl(id, type, serverId, sNum, eNum) {
     switch (serverId) {
         case '1':
-            // Servidor 1: vidsrc.icu (Principal)
-            if (type === 'tv') {
-                url = `https://vidsrc.icu/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
-            } else {
-                url = `https://vidsrc.icu/embed/movie/${id}?lang=es`;
-            }
-            break;
+            // VidFast — ocultamos su botón fullscreen (redirige a sitios externos)
+            return type === 'tv'
+                ? `https://vidfast.pro/tv/${id}/${sNum}/${eNum}?autoPlay=true&sub=es&title=false&poster=true&fullscreenButton=false`
+                : `https://vidfast.pro/movie/${id}?autoPlay=true&sub=es&title=false&poster=true&fullscreenButton=false`;
         case '2':
-            // Servidor 2: player.autoembed.to
-            if (type === 'tv') {
-                url = `https://player.autoembed.to/tv/${id}/${sNum}/${eNum}?lang=es`;
-            } else {
-                url = `https://player.autoembed.to/movie/${id}?lang=es`;
-            }
-            break;
+            // VidLink — agrega múltiples fuentes automáticamente
+            return type === 'tv'
+                ? `https://vidlink.pro/tv/${id}/${sNum}/${eNum}?autoplay=true&primaryColor=00f3ff&secondaryColor=1a1a1a&title=false`
+                : `https://vidlink.pro/movie/${id}?autoplay=true&primaryColor=00f3ff&secondaryColor=1a1a1a&title=false`;
         case '3':
-            // Servidor 3: embed.su
-            if (type === 'tv') {
-                url = `https://embed.su/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
-            } else {
-                url = `https://embed.su/embed/movie/${id}?lang=es`;
-            }
-            break;
+            // AutoEmbed — buen respaldo para series y películas
+            return type === 'tv'
+                ? `https://autoembed.co/tv/tmdb/${id}-${sNum}-${eNum}`
+                : `https://autoembed.co/movie/tmdb/${id}`;
         default:
-            if (type === 'tv') {
-                url = `https://vidsrc.icu/embed/tv/${id}/${sNum}/${eNum}?lang=es`;
-            } else {
-                url = `https://vidsrc.icu/embed/movie/${id}?lang=es`;
-            }
+            return type === 'tv'
+                ? `https://vidfast.pro/tv/${id}/${sNum}/${eNum}?autoPlay=true&sub=es`
+                : `https://vidfast.pro/movie/${id}?autoPlay=true&sub=es`;
     }
-    
-    // Pequeño retardo para asegurar que el DOM eliminó el iframe anterior y cortó el audio
+}
+
+function setupFullscreenControls() {
+    if (!elements.fullscreenBtn || !elements.videoStage) return;
+
+    elements.fullscreenBtn.addEventListener('click', toggleVideoFullscreen);
+
+    document.addEventListener('fullscreenchange', updateFullscreenButtonState);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButtonState);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') updateFullscreenButtonState();
+        if (
+            e.key === 'f' &&
+            elements.playerSection.classList.contains('active-view') &&
+            !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+        ) {
+            e.preventDefault();
+            toggleVideoFullscreen();
+        }
+    });
+}
+
+function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function toggleVideoFullscreen() {
+    if (!elements.videoStage) return;
+
+    if (getFullscreenElement()) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        return;
+    }
+
+    const stage = elements.videoStage;
+    if (stage.requestFullscreen) stage.requestFullscreen();
+    else if (stage.webkitRequestFullscreen) stage.webkitRequestFullscreen();
+}
+
+function updateFullscreenButtonState() {
+    if (!elements.fullscreenBtn) return;
+
+    const isFullscreen = getFullscreenElement() === elements.videoStage;
+    elements.fullscreenBtn.classList.toggle('is-active', isFullscreen);
+    elements.fullscreenBtn.setAttribute('aria-label', isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa');
+    elements.fullscreenBtn.title = isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa';
+
+    elements.fullscreenBtn.querySelector('.icon-expand')?.classList.toggle('hidden', isFullscreen);
+    elements.fullscreenBtn.querySelector('.icon-compress')?.classList.toggle('hidden', !isFullscreen);
+}
+
+function loadVideoIframe(id, type, serverId, sNum, eNum) {
+    if (!id) return;
+
+    elements.videoContainer.innerHTML = '<p class="player-loading">Cargando reproductor...</p>';
+
+    const url = buildEmbedUrl(id, type, serverId, sNum, eNum);
+
+    // Destruir iframe anterior antes de crear uno nuevo (evita audio duplicado)
     setTimeout(() => {
-        const iframeHtml = `<iframe id="reproductor-iframe" src="${url}" width="100%" height="100%" frameborder="0" scrolling="no" allowfullscreen></iframe>`;
-        elements.videoContainer.innerHTML = iframeHtml;
-    }, 50);
+        elements.videoContainer.innerHTML = '';
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'reproductor-iframe';
+        iframe.src = url;
+        iframe.setAttribute('width', '100%');
+        iframe.setAttribute('height', '100%');
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('scrolling', 'no');
+        iframe.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture; encrypted-media');
+        iframe.setAttribute('allowfullscreen', '');
+        // Sin sandbox: VidFast/VidLink detectan sandbox y dejan de reproducir
+        elements.videoContainer.appendChild(iframe);
+    }, 100);
 }
 
 function pushPlayerUrl(s, e) {

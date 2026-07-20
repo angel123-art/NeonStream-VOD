@@ -109,14 +109,21 @@
                 </div>
                 
                 <!-- Mandatory empty wrapper as requested -->
-                <div id="video-container" class="video-wrapper"></div>
+                <div class="video-stage" id="video-stage">
+                    <div id="video-container" class="video-wrapper"></div>
+                    <button id="fullscreen-btn" class="fullscreen-btn" type="button" aria-label="Pantalla completa" title="Pantalla completa">
+                        <svg class="icon-expand" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                        <svg class="icon-compress hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+                    </button>
+                </div>
                 
                 <!-- Opciones de Servidor Multilink -->
                 <div class="server-options" id="server-options">
-                    <button class="server-btn active" data-server="1">🎬 Servidor 1</button>
-                    <button class="server-btn" data-server="2">🎬 Servidor 2</button>
-                    <button class="server-btn" data-server="3">🎬 Servidor 3</button>
+                    <button class="server-btn active" data-server="1">▶ VidFast</button>
+                    <button class="server-btn" data-server="2">▶ VidLink</button>
+                    <button class="server-btn" data-server="3">▶ AutoEmbed</button>
                 </div>
+                <p class="server-hint">Usa el botón ⛶ abajo a la derecha del video para pantalla completa. El del reproductor interno puede redirigir.</p>
 
                 
                 <div class="player-details">
