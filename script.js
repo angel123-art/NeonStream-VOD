@@ -41,6 +41,11 @@ function getAuthRedirectUrl() {
     return `${url.origin}${path}`;
 }
 
+function getPasswordResetRedirectUrl() {
+    const path = window.location.pathname.replace(/\/index\.html$/i, '') || '/';
+    return `${window.location.origin}${path}`;
+}
+
 function cleanAuthCallbackFromUrl() {
     const hash = window.location.hash;
     if (!hash) return;
@@ -61,6 +66,26 @@ const PROFILE_SESSION_KEY = 'netflix_active_profile';
 const PROFILE_LOCAL_KEY = 'netflix_active_profile_v1';
 const MAX_PROFILES = 5;
 const CARD_HOVER_DELAY_MS = 1200;
+const NOTIFICATIONS_POLL_MS = 45000;
+const NOTIFICATIONS_MAX = 15;
+const NOTIFICATION_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w300';
+const NOTIFICATION_FALLBACK_IMAGE = `${NOTIFICATION_IMAGE_BASE_URL}/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg`;
+
+const NOTIFICATION_TEMPLATES = [
+    { title: 'Nueva temporada disponible', description: 'Ya puedes ver todos los episodios de {name}.', backdrop: '/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg', mediaId: 66732, mediaType: 'tv' },
+    { title: 'Estreno reciente', description: '{name} acaba de llegar a Netflix.', backdrop: '/5a4JdoFwN11OrHuxEp4J4BoGxxP.jpg', mediaId: 361743, mediaType: 'movie' },
+    { title: 'Recomendado para ti', description: 'Creemos que te gustará {name}.', backdrop: '/9EnAD2saKzhaK0JrPfe2SRTKe5.jpg', mediaId: 119051, mediaType: 'tv' },
+    { title: 'Continúa viendo', description: 'Retoma {name} donde lo dejaste.', backdrop: '/7Y91Y9MXe1a8mULVl2uH7xAOH2.jpg', mediaId: 71912, mediaType: 'tv' },
+    { title: 'Nuevo tráiler', description: 'Mira el tráiler oficial de {name}.', backdrop: '/fm6KqXpk3M4HF7uX4U3GZ4WgaNL.jpg', mediaId: 872585, mediaType: 'movie' },
+    { title: 'Añadido a tu lista', description: '{name} está listo para reproducir.', backdrop: '/oaGnvB0jWRtePf0UZWRno1lGI6.jpg', mediaId: 93405, mediaType: 'tv' },
+    { title: 'Top 10 hoy', description: '{name} es uno de los títulos más vistos.', backdrop: '/tuDGIMPtFj7Xqg0xFHM3d8B3m.jpg', mediaId: 100088, mediaType: 'tv' },
+    { title: 'Nuevo episodio', description: 'Un episodio de {name} acaba de publicarse.', backdrop: '/re4oxik8s8Y7t0blYv0p8v5K0j.jpg', mediaId: 71446, mediaType: 'tv' }
+];
+
+const NOTIFICATION_SHOW_NAMES = [
+    'Stranger Things', 'Top Gun: Maverick', 'Wednesday', 'The Witcher', 'Oppenheimer',
+    'El juego del calamar', 'The Last of Us', 'La casa de papel'
+];
 
 const AVATAR_PRESETS = [
     { id: 'classic', url: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png' },
@@ -73,11 +98,37 @@ const AVATAR_PRESETS = [
     { id: 'pink', url: 'https://ui-avatars.com/api/?name=N&background=E91E8C&color=fff&size=256&bold=true&format=png' }
 ];
 
+const LANDING_POSTER_PATHS = [
+    '/9PFonBhy6cDF7WUVSJSUvyV6X5.jpg', '/49WJfeN0moxb9IPfGn8AIqMGskD.jpg', '/dDlEmu3Z0PzFmnjscLAl6NhPOiw.jpg',
+    '/7vjaCdMw15FEfCq7JPUj5HVTWas.jpg', '/reEMJA1Jsc773Xg7XGZM6oW9x7.jpg', '/ggFHVNu6YYI5L9pCfOacjizxPF.jpg',
+    '/jcM9Xyz8bVFd4FkZRXDY4W3f8o.jpg', '/pIkRyDNIklXJqPkwWr99sP8U8S.jpg', '/1g0dhYtq4irTY1GPXvft6kYL0.jpg',
+    '/8Gxv8gSFCU0XGDykEGv7zR1nGlS.jpg', '/z2y0htqdHDgXVKOMX08Kk5Xlux.jpg', '/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
+    '/yYrvN5BCTaMk8J0QCsOSoEdAhB.jpg', '/6oom5QYQ2yQTM8MIKC5JqT3yCj8.jpg', '/4Y1WNKd88jxA3OL7Q98cGR1h2fA.jpg',
+    '/qJ2tW6WMUDux911rY7aHmAfpWXS.jpg', '/b9GkDweFm078TGOWWE8XLO4VPpn.jpg', '/iu42m7o3ePZ7YlM4U9QAvFtx7M.jpg',
+    '/8Vt6mWEReuy4OfCG9Yj1zXTQNI.jpg', '/vZjdIETFQSUTrsdF29ZjflEpSr.jpg', '/9Gtg2DzBhmwtUPkARYdKoYdN5Id.jpg',
+    '/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg', '/eU1i6eHXlzMOlIxkEhJfa5tDM8.jpg', '/or06FN3Dka5tukor1Sv0rxLDikO.jpg',
+    '/7RyHsO4yDXtBv1zUU3mTpHeQ0d.jpg', '/2CAL2433ZvIh0SbFiFiPEAEA33.jpg', '/wHa6KOmaoMPL0SmjzZ8Bi6Lj1z.jpg',
+    '/bMaUaPOShotEpLiMvM3SL3ZDY2c.jpg', '/tuomAz9d7bytprQ0GcjJ9p2PnXL.jpg', '/7Y91Y9MXe1a8mULVl2uH7xAOH2.jpg',
+    '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', '/sKvkd1lBr7SKHw1cDas8QHPqiao.jpg', '/tmU7GeZyfCaj7A8BXCyD9z10pM.jpg'
+];
+
 const elements = {
+    appBootLoader: document.getElementById('app-boot-loader'),
+    landingGate: document.getElementById('landing-gate'),
+    landingPosterCollage: document.getElementById('landing-poster-collage'),
+    landingSigninBtn: document.getElementById('landing-signin-btn'),
+    landingEmailForm: document.getElementById('landing-email-form'),
+    landingEmail: document.getElementById('landing-email'),
+    landingGetStartedBtn: document.getElementById('landing-get-started-btn'),
     authGate: document.getElementById('auth-gate'),
+    authBackBtn: document.getElementById('auth-back-btn'),
+    authBackLink: document.getElementById('auth-back-link'),
     authForm: document.getElementById('auth-form'),
     authEmail: document.getElementById('auth-email'),
     authPassword: document.getElementById('auth-password'),
+    authPasswordGroup: document.getElementById('auth-password-group'),
+    authForgotBtn: document.getElementById('auth-forgot-btn'),
+    authForgotBackBtn: document.getElementById('auth-forgot-back-btn'),
     authError: document.getElementById('auth-error'),
     authSuccess: document.getElementById('auth-success'),
     authSubmitBtn: document.getElementById('auth-submit-btn'),
@@ -97,6 +148,12 @@ const elements = {
     logoHome: document.getElementById('logo-home'),
     searchWrapper: document.getElementById('search-wrapper'),
     searchToggle: document.getElementById('search-toggle'),
+    notificationsWrapper: document.getElementById('notifications-wrapper'),
+    notificationsBtn: document.getElementById('notifications-btn'),
+    notificationsBadge: document.getElementById('notifications-badge'),
+    notificationsPanel: document.getElementById('notifications-panel'),
+    notificationsList: document.getElementById('notifications-list'),
+    notificationsEmpty: document.getElementById('notifications-empty'),
     heroVideoPlayer: document.getElementById('hero-video-player'),
     heroVideoWrap: document.getElementById('hero-video-wrap'),
     heroVolumeBtn: document.getElementById('hero-volume-btn'),
@@ -179,16 +236,28 @@ let editingProfileId = null;
 let selectedAvatarUrl = AVATAR_PRESETS[0].url;
 let profileGateInitialized = false;
 let authGateInitialized = false;
+let landingGateInitialized = false;
 let authMode = 'login';
 let supabaseClient = null;
 let currentUser = null;
 let userProfiles = [];
 let profilesLoading = false;
+let notifications = [];
+let notificationsPollInterval = null;
+let notificationsInitialized = false;
+let notificationsPanelOpen = false;
+let notificationsSeedLoaded = false;
+let appBootComplete = false;
+let bootSessionResolved = false;
+let appBootTimeoutId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    startAppBoot();
     setupEventListeners();
     setupNavbarScroll();
     setupSearchToggle();
+    setupNotifications();
+    setupLandingGate();
     setupAuthGate();
     setupProfileGate();
     setupProfilePersistence();
@@ -197,11 +266,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initAuth();
 });
 
+// ============================================
+// App Boot — splash inicial anti-flicker
+// ============================================
+function startAppBoot() {
+    document.documentElement.classList.add('app-booting');
+    document.documentElement.classList.remove('app-ready');
+    document.body.classList.remove('landing-gate-active', 'auth-gate-active', 'profile-gate-active');
+
+    elements.landingGate?.classList.add('hidden');
+    elements.authGate?.classList.add('hidden');
+    elements.profileGate?.classList.add('hidden');
+    elements.appBootLoader?.classList.remove('hidden', 'app-boot-loader--out');
+
+    if (appBootTimeoutId) clearTimeout(appBootTimeoutId);
+    appBootTimeoutId = setTimeout(() => {
+        if (!appBootComplete) {
+            console.warn('[Boot] Tiempo de espera agotado — mostrando landing.');
+            showLandingGate();
+            finishAppBoot();
+        }
+    }, 12000);
+}
+
+function finishAppBoot() {
+    if (appBootComplete) return;
+    appBootComplete = true;
+
+    if (appBootTimeoutId) {
+        clearTimeout(appBootTimeoutId);
+        appBootTimeoutId = null;
+    }
+
+    document.body.style.overflow = '';
+
+    const loader = elements.appBootLoader;
+    const reveal = () => {
+        document.documentElement.classList.remove('app-booting');
+        document.documentElement.classList.add('app-ready');
+    };
+
+    if (loader) {
+        loader.classList.add('app-boot-loader--out');
+        setTimeout(reveal, 280);
+    } else {
+        reveal();
+    }
+}
+
+async function resolveBootSession(session) {
+    if (bootSessionResolved) return;
+    bootSessionResolved = true;
+
+    if (session?.user) {
+        await onUserAuthenticated(session.user, { fromInitialSession: true });
+        return;
+    }
+
+    showLandingGate();
+    finishAppBoot();
+}
+
 function setupSearchToggle() {
     if (!elements.searchToggle || !elements.searchWrapper) return;
 
     elements.searchToggle.addEventListener('click', (e) => {
         e.stopPropagation();
+        closeNotificationsPanel();
         elements.searchWrapper.classList.toggle('open');
         if (elements.searchWrapper.classList.contains('open')) {
             elements.searchInput.focus();
@@ -213,6 +344,358 @@ function setupSearchToggle() {
             elements.searchWrapper.classList.remove('open');
         }
     });
+}
+
+// ============================================
+// Notifications — panel, badge y polling
+// ============================================
+function setupNotifications() {
+    if (notificationsInitialized) return;
+    notificationsInitialized = true;
+
+    elements.notificationsBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleNotificationsPanel();
+    });
+
+    elements.notificationsList?.addEventListener('click', (e) => {
+        const item = e.target.closest('.notifications-item[data-notification-id]');
+        if (!item) return;
+        handleNotificationClick(item.dataset.notificationId);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!notificationsPanelOpen) return;
+        if (!elements.notificationsWrapper?.contains(e.target)) {
+            closeNotificationsPanel();
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeNotificationsPanel();
+    });
+
+    elements.notificationsList?.addEventListener('error', (e) => {
+        const img = e.target;
+        if (!img?.classList?.contains('notifications-thumb')) return;
+        img.onerror = null;
+        img.src = NOTIFICATION_FALLBACK_IMAGE;
+        img.classList.add('notifications-thumb--fallback');
+    }, true);
+}
+
+function getNotificationThumbnailUrl(pathOrUrl) {
+    if (!pathOrUrl) return NOTIFICATION_FALLBACK_IMAGE;
+    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+    const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+    return `${NOTIFICATION_IMAGE_BASE_URL}${path}`;
+}
+
+function createSeedNotifications() {
+    const now = Date.now();
+    return [
+        {
+            id: 'seed-1',
+            title: 'Bienvenido de nuevo',
+            description: 'Descubre las novedades que llegaron esta semana a Netflix.',
+            thumbnail: '/9EnAD2saKzhaK0JrPfe2SRTKe5.jpg',
+            createdAt: now - 12 * 60 * 1000,
+            read: false
+        },
+        {
+            id: 'seed-2',
+            title: 'Nueva temporada disponible',
+            description: 'Stranger Things tiene episodios nuevos listos para ver.',
+            thumbnail: '/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg',
+            createdAt: now - 45 * 60 * 1000,
+            read: false,
+            mediaId: 66732,
+            mediaType: 'tv'
+        },
+        {
+            id: 'seed-3',
+            title: 'Continúa viendo',
+            description: 'Retoma The Witcher donde lo dejaste.',
+            thumbnail: '/7Y91Y9MXe1a8mULVl2uH7xAOH2.jpg',
+            createdAt: now - 2 * 60 * 60 * 1000,
+            read: true,
+            mediaId: 71912,
+            mediaType: 'tv'
+        }
+    ];
+}
+
+function ensureNotificationsSeed() {
+    if (notificationsSeedLoaded) return;
+    notifications = createSeedNotifications();
+    notificationsSeedLoaded = true;
+    updateNotificationsBadge();
+}
+
+function buildSimulatedNotification() {
+    const template = NOTIFICATION_TEMPLATES[Math.floor(Math.random() * NOTIFICATION_TEMPLATES.length)];
+    const name = NOTIFICATION_SHOW_NAMES[Math.floor(Math.random() * NOTIFICATION_SHOW_NAMES.length)];
+
+    return {
+        id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        title: template.title,
+        description: template.description.replace('{name}', name),
+        thumbnail: template.backdrop,
+        createdAt: Date.now(),
+        read: false,
+        mediaId: template.mediaId,
+        mediaType: template.mediaType
+    };
+}
+
+async function fetchNotifications({ allowNew = true } = {}) {
+    if (!currentUser || document.body.classList.contains('profile-gate-active')) {
+        return;
+    }
+
+    ensureNotificationsSeed();
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    if (allowNew && Math.random() < 0.4) {
+        notifications.unshift(buildSimulatedNotification());
+        notifications = notifications.slice(0, NOTIFICATIONS_MAX);
+    }
+
+    renderNotificationsPanel();
+    updateNotificationsBadge();
+}
+
+function formatNotificationTimeAgo(timestamp) {
+    const diffMs = Date.now() - timestamp;
+    const mins = Math.floor(diffMs / 60000);
+
+    if (mins < 1) return 'Ahora';
+    if (mins < 60) return `Hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Hace ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'Ayer';
+    return `Hace ${days} días`;
+}
+
+function getUnreadNotificationsCount() {
+    return notifications.filter((n) => !n.read).length;
+}
+
+function updateNotificationsBadge() {
+    const badge = elements.notificationsBadge;
+    if (!badge) return;
+
+    const unread = getUnreadNotificationsCount();
+    if (unread <= 0) {
+        badge.classList.add('hidden');
+        badge.textContent = '0';
+        elements.notificationsBtn?.setAttribute('aria-label', 'Notificaciones');
+        return;
+    }
+
+    badge.classList.remove('hidden');
+    badge.textContent = unread > 9 ? '9+' : String(unread);
+    elements.notificationsBtn?.setAttribute('aria-label', `Notificaciones, ${unread} sin leer`);
+}
+
+function renderNotificationsPanel() {
+    const list = elements.notificationsList;
+    const empty = elements.notificationsEmpty;
+    if (!list || !empty) return;
+
+    if (!notifications.length) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+
+    empty.classList.add('hidden');
+    list.innerHTML = notifications.map((item) => {
+        const thumbUrl = getNotificationThumbnailUrl(item.thumbnail);
+        return `
+        <button type="button" class="notifications-item${item.read ? '' : ' unread'}" data-notification-id="${escapeHtml(item.id)}" data-media-id="${item.mediaId || ''}" data-media-type="${item.mediaType || ''}">
+            <span class="notifications-thumb-wrap" aria-hidden="true">
+                <img class="notifications-thumb" src="${thumbUrl}" alt="" width="64" height="36" loading="lazy" decoding="async">
+            </span>
+            <div class="notifications-body">
+                <p class="notifications-item-title">${escapeHtml(item.title)}</p>
+                <p class="notifications-item-desc">${escapeHtml(item.description)}</p>
+                <span class="notifications-item-time">${escapeHtml(formatNotificationTimeAgo(item.createdAt))}</span>
+            </div>
+        </button>
+    `;
+    }).join('');
+}
+
+function markAllNotificationsRead() {
+    notifications = notifications.map((item) => ({ ...item, read: true }));
+    updateNotificationsBadge();
+    renderNotificationsPanel();
+}
+
+function openNotificationsPanel() {
+    if (!elements.notificationsPanel || !elements.notificationsBtn) return;
+
+    elements.searchWrapper?.classList.remove('open');
+    markAllNotificationsRead();
+
+    elements.notificationsPanel.classList.remove('hidden');
+    elements.notificationsBtn.setAttribute('aria-expanded', 'true');
+    notificationsPanelOpen = true;
+    renderNotificationsPanel();
+}
+
+function closeNotificationsPanel(updateBadge = true) {
+    if (!elements.notificationsPanel || !elements.notificationsBtn) return;
+
+    elements.notificationsPanel.classList.add('hidden');
+    elements.notificationsBtn.setAttribute('aria-expanded', 'false');
+    notificationsPanelOpen = false;
+
+    if (updateBadge) {
+        updateNotificationsBadge();
+    }
+}
+
+function toggleNotificationsPanel() {
+    if (notificationsPanelOpen) {
+        closeNotificationsPanel();
+    } else {
+        openNotificationsPanel();
+    }
+}
+
+async function handleNotificationClick(notificationId) {
+    const item = notifications.find((n) => n.id === notificationId);
+    if (!item) return;
+
+    item.read = true;
+    updateNotificationsBadge();
+    renderNotificationsPanel();
+    closeNotificationsPanel();
+
+    if (item.mediaId && item.mediaType) {
+        try {
+            const url = `${TMDB_BASE_URL}/${item.mediaType}/${item.mediaId}?api_key=${API_KEY}&language=es-MX`;
+            const response = await fetch(url);
+            if (!response.ok) return;
+            const data = await response.json();
+            data.custom_type = item.mediaType;
+            loadedMedia[data.id] = data;
+            openDetailModal(data);
+        } catch (err) {
+            console.warn('[Notificaciones] No se pudo abrir el título:', err);
+        }
+    }
+}
+
+function startNotificationsPolling() {
+    if (!currentUser) return;
+
+    ensureNotificationsSeed();
+    renderNotificationsPanel();
+    updateNotificationsBadge();
+
+    if (notificationsPollInterval) return;
+
+    void fetchNotifications({ allowNew: false });
+
+    notificationsPollInterval = setInterval(() => {
+        void fetchNotifications({ allowNew: true });
+    }, NOTIFICATIONS_POLL_MS);
+}
+
+function stopNotificationsPolling() {
+    if (notificationsPollInterval) {
+        clearInterval(notificationsPollInterval);
+        notificationsPollInterval = null;
+    }
+    closeNotificationsPanel();
+    notifications = [];
+    notificationsSeedLoaded = false;
+    updateNotificationsBadge();
+    if (elements.notificationsList) elements.notificationsList.innerHTML = '';
+    elements.notificationsEmpty?.classList.add('hidden');
+}
+
+// ============================================
+// Landing Page — Vista pública
+// ============================================
+function buildLandingPosterCollage() {
+    if (!elements.landingPosterCollage) return;
+
+    const paths = [];
+    while (paths.length < 48) {
+        paths.push(...LANDING_POSTER_PATHS);
+    }
+
+    elements.landingPosterCollage.innerHTML = paths.slice(0, 48).map((path) => (
+        `<div class="landing-poster-tile"><img src="${IMAGE_BASE_URL}${path}" alt="" loading="lazy" decoding="async"></div>`
+    )).join('');
+}
+
+function setupLandingGate() {
+    if (landingGateInitialized) return;
+    landingGateInitialized = true;
+
+    buildLandingPosterCollage();
+
+    elements.landingSigninBtn?.addEventListener('click', () => {
+        openAuthFromLanding('login');
+    });
+
+    elements.landingEmailForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = normalizeAuthEmail(elements.landingEmail?.value || '');
+        openAuthFromLanding('register', email);
+    });
+}
+
+function showLandingGate() {
+    document.body.classList.add('landing-gate-active', 'profile-gate-active');
+    document.body.classList.remove('auth-gate-active');
+    elements.landingGate?.classList.remove('hidden');
+    elements.authGate?.classList.add('hidden');
+    elements.profileGate?.classList.add('hidden');
+}
+
+function hideLandingGate() {
+    document.body.classList.remove('landing-gate-active');
+    elements.landingGate?.classList.add('hidden');
+}
+
+function returnToLandingFromAuth() {
+    hideAuthGate();
+    hideAuthMessages();
+    elements.authForm?.reset();
+    authMode = 'login';
+    updateAuthUI();
+    showLandingGate();
+}
+
+function openAuthFromLanding(mode = 'login', email = '') {
+    hideLandingGate();
+    authMode = mode;
+    showAuthGate();
+    hideAuthMessages();
+    updateAuthUI();
+
+    if (email && elements.authEmail) {
+        elements.authEmail.value = email;
+    }
+
+    if (!supabaseClient) {
+        showAuthError('No se pudo inicializar Supabase. Verifica que el script CDN cargue (F12 → Consola).');
+    } else {
+        const configIssues = validateSupabaseConfig();
+        if (configIssues.length) {
+            showAuthError(configIssues.join(' '));
+        }
+    }
+
+    elements.authEmail?.focus();
 }
 
 // ============================================
@@ -366,45 +849,89 @@ function setupAuthGate() {
 
     elements.authForm.addEventListener('submit', handleAuthSubmit);
     elements.authToggleBtn?.addEventListener('click', toggleAuthMode);
+    elements.authForgotBtn?.addEventListener('click', openForgotPasswordMode);
+    elements.authForgotBackBtn?.addEventListener('click', returnToLoginFromForgot);
+    elements.authBackBtn?.addEventListener('click', returnToLandingFromAuth);
+    elements.authBackLink?.addEventListener('click', returnToLandingFromAuth);
+}
+
+function openForgotPasswordMode() {
+    authMode = 'forgot';
+    updateAuthUI();
+    hideAuthMessages();
+    elements.authEmail?.focus();
+}
+
+function returnToLoginFromForgot() {
+    authMode = 'login';
+    updateAuthUI();
+    hideAuthMessages();
+    elements.authEmail?.focus();
 }
 
 function toggleAuthMode() {
+    if (authMode === 'forgot') return;
     authMode = authMode === 'login' ? 'register' : 'login';
     updateAuthUI();
     hideAuthMessages();
     elements.authEmail?.focus();
 }
 
+function getAuthSubmitLabel() {
+    if (authMode === 'forgot') return 'Enviar enlace de recuperación';
+    if (authMode === 'register') return 'Registrarse';
+    return 'Iniciar sesión';
+}
+
 function updateAuthUI() {
     const isLogin = authMode === 'login';
+    const isRegister = authMode === 'register';
+    const isForgot = authMode === 'forgot';
 
     if (elements.authGateTitle) {
-        elements.authGateTitle.textContent = isLogin ? 'Iniciar sesión' : 'Registrarse';
+        elements.authGateTitle.textContent = isForgot
+            ? 'Restablecer contraseña'
+            : (isLogin ? 'Iniciar sesión' : 'Registrarse');
     }
     if (elements.authSubmitBtn) {
-        elements.authSubmitBtn.textContent = isLogin ? 'Iniciar sesión' : 'Registrarse';
+        elements.authSubmitBtn.textContent = getAuthSubmitLabel();
     }
     if (elements.authToggleBtn) {
         elements.authToggleBtn.innerHTML = isLogin
             ? '¿Primera vez en Netflix? <span>Regístrate ahora</span>'
             : '¿Ya tienes cuenta? <span>Inicia sesión</span>';
+        elements.authToggleBtn.classList.toggle('hidden', isForgot);
+    }
+    if (elements.authForgotBackBtn) {
+        elements.authForgotBackBtn.classList.toggle('hidden', !isForgot);
+    }
+    if (elements.authPasswordGroup) {
+        elements.authPasswordGroup.classList.toggle('hidden', isForgot);
+    }
+    if (elements.authForgotBtn) {
+        elements.authForgotBtn.classList.toggle('hidden', !isLogin);
     }
     if (elements.authEmail) {
         elements.authEmail.placeholder = 'nombre@ejemplo.com';
-        elements.authEmail.autocomplete = isLogin ? 'email' : 'email';
+        elements.authEmail.autocomplete = 'email';
     }
     if (elements.authPassword) {
-        elements.authPassword.autocomplete = isLogin ? 'current-password' : 'new-password';
+        elements.authPassword.autocomplete = isRegister ? 'new-password' : 'current-password';
+        elements.authPassword.required = !isForgot;
     }
     if (elements.authHint) {
-        elements.authHint.textContent = isLogin
-            ? 'Usa el correo electrónico con el que te registraste.'
-            : 'Al registrarte aceptas nuestros Términos de uso y Política de privacidad.';
+        elements.authHint.textContent = isForgot
+            ? 'Te enviaremos un enlace para restablecer tu contraseña.'
+            : (isLogin
+                ? 'Usa el correo electrónico con el que te registraste.'
+                : 'Al registrarte aceptas nuestros Términos de uso y Política de privacidad.');
     }
 }
 
 function showAuthGate() {
+    hideLandingGate();
     document.body.classList.add('auth-gate-active', 'profile-gate-active');
+    document.body.classList.remove('landing-gate-active');
     elements.authGate?.classList.remove('hidden');
     elements.profileGate?.classList.add('hidden');
     updateAuthUI();
@@ -438,9 +965,7 @@ function hideAuthMessages() {
 function setAuthLoading(loading) {
     if (elements.authSubmitBtn) {
         elements.authSubmitBtn.disabled = loading;
-        elements.authSubmitBtn.textContent = loading
-            ? 'Procesando...'
-            : (authMode === 'login' ? 'Iniciar sesión' : 'Registrarse');
+        elements.authSubmitBtn.textContent = loading ? 'Procesando...' : getAuthSubmitLabel();
     }
 }
 
@@ -461,12 +986,42 @@ async function handleAuthSubmit(e) {
     }
 
     const email = normalizeAuthEmail(elements.authEmail?.value || '');
-    const password = elements.authPassword?.value || '';
 
     if (!email) {
         showAuthError('Introduce tu correo electrónico.');
         return;
     }
+
+    if (authMode === 'forgot') {
+        if (!email.includes('@')) {
+            showAuthError('Introduce un correo electrónico válido.');
+            return;
+        }
+
+        setAuthLoading(true);
+
+        try {
+            const redirectTo = getPasswordResetRedirectUrl();
+            console.info('[Supabase Auth] resetPasswordForEmail →', { email, redirectTo });
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+
+            if (error) {
+                logSupabaseError('resetPasswordForEmail', error, { email });
+                throw error;
+            }
+
+            showAuthSuccess('Te enviamos un enlace de recuperación a tu correo. Revisa tu bandeja de entrada.');
+        } catch (err) {
+            showAuthError(getAuthErrorMessage(err, 'resetPassword'));
+        } finally {
+            setAuthLoading(false);
+        }
+        return;
+    }
+
+    const password = elements.authPassword?.value || '';
+
     if (password.length < 6) {
         showAuthError('La contraseña debe tener al menos 6 caracteres.');
         return;
@@ -552,6 +1107,7 @@ function getAuthErrorMessage(err, context = 'auth') {
     if (/user already registered|already been registered/i.test(msg)) return 'Este correo ya está registrado. Inicia sesión.';
     if (/signup is disabled/i.test(msg)) return 'El registro está deshabilitado en Supabase Auth.';
     if (/rate limit|too many requests/i.test(msg)) return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
+    if (/email.*invalid|invalid email/i.test(msg)) return 'Introduce un correo electrónico válido.';
 
     return msg || 'Error de autenticación desconocido.';
 }
@@ -567,16 +1123,46 @@ async function initAuth() {
 
     supabaseClient = initSupabaseClient();
     if (!supabaseClient) {
-        showAuthGate();
-        showAuthError('No se pudo inicializar Supabase. Verifica que el script CDN cargue (F12 → Consola).');
+        showLandingGate();
+        finishAppBoot();
         return;
     }
 
     const configIssues = validateSupabaseConfig();
     if (configIssues.length) {
-        showAuthGate();
-        showAuthError(configIssues.join(' '));
+        showLandingGate();
+        finishAppBoot();
+        console.warn('[Supabase] Config inválida:', configIssues.join(' '));
         return;
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        console.info('[Supabase Auth] onAuthStateChange', { event, hasSession: Boolean(session) });
+
+        if (event === 'INITIAL_SESSION') {
+            if (!bootSessionResolved) {
+                void resolveBootSession(session);
+            }
+            return;
+        }
+
+        if (event === 'SIGNED_IN' && session?.user) {
+            void onUserAuthenticated(session.user);
+            return;
+        }
+
+        if (event === 'SIGNED_OUT') {
+            if (currentUser) onUserSignedOut();
+        }
+    });
+
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) {
+        console.warn('[Supabase Auth] getSession:', error);
+    }
+
+    if (!bootSessionResolved) {
+        await resolveBootSession(session);
     }
 
     // Diagnóstico en consola únicamente — no bloquea el formulario de login
@@ -588,42 +1174,34 @@ async function initAuth() {
             }
         })
         .catch((err) => console.warn('[Supabase] Prueba de conexión falló:', err));
-
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        console.info('[Supabase Auth] onAuthStateChange', { event, hasSession: Boolean(session) });
-
-        if (event === 'INITIAL_SESSION') {
-            if (session?.user) await onUserAuthenticated(session.user);
-            else showAuthGate();
-            return;
-        }
-        if (event === 'SIGNED_IN' && session?.user) {
-            await onUserAuthenticated(session.user);
-        } else if (event === 'SIGNED_OUT') {
-            onUserSignedOut();
-        }
-    });
 }
 
-async function onUserAuthenticated(user) {
+async function onUserAuthenticated(user, { fromInitialSession = false } = {}) {
     currentUser = user;
     cleanAuthCallbackFromUrl();
+    hideLandingGate();
     hideAuthGate();
 
-    elements.profileGate?.classList.remove('hidden');
-    document.body.classList.add('profile-gate-active');
+    if (!fromInitialSession) {
+        elements.profileGate?.classList.remove('hidden');
+        document.body.classList.add('profile-gate-active');
+    }
 
     try {
         await loadUserProfiles();
     } catch (err) {
         console.error('Error cargando perfiles:', err);
+        elements.profileGate?.classList.remove('hidden');
+        document.body.classList.add('profile-gate-active');
         showProfileGridError('No se pudieron cargar tus perfiles. Intenta de nuevo.');
+        if (fromInitialSession) finishAppBoot();
         return;
     }
 
     renderProfileSelectGrid();
 
     if (tryRestoreProfileSession({ reloadCatalog: true })) {
+        if (fromInitialSession) finishAppBoot();
         return;
     }
 
@@ -633,6 +1211,8 @@ async function onUserAuthenticated(user) {
     } else {
         openProfileGate('select');
     }
+
+    if (fromInitialSession) finishAppBoot();
 }
 
 function onUserSignedOut() {
@@ -641,17 +1221,49 @@ function onUserSignedOut() {
     userProfiles = [];
     closeProfileEditor();
     closeProfileManage();
+    closeDetailModal();
+    clearInterval(carouselInterval);
+    clearInterval(homeRefreshInterval);
+    carouselInterval = null;
+    homeRefreshInterval = null;
+    stopNotificationsPolling();
+    elements.profileGate?.classList.remove('fade-out');
     elements.profileGate?.classList.add('hidden');
+    elements.trailerModal?.classList.add('hidden');
+    if (elements.trailerVideoContainer) elements.trailerVideoContainer.innerHTML = '';
     elements.authForm?.reset();
+    elements.landingEmailForm?.reset();
     hideAuthMessages();
     authMode = 'login';
     updateAuthUI();
-    showAuthGate();
+    showLandingGate();
 }
 
 async function handleSignOut() {
-    if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
+    const btn = elements.profileSignoutBtn;
+    const originalText = btn?.textContent;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Cerrando sesión...';
+    }
+
+    try {
+        if (supabaseClient) {
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) {
+                logSupabaseError('signOut', error);
+            }
+        }
+    } catch (err) {
+        logSupabaseError('signOut', err);
+    } finally {
+        onUserSignedOut();
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText || 'Cerrar sesión';
+        }
+    }
 }
 
 // ============================================
@@ -1147,7 +1759,9 @@ function selectProfile(profile, { reloadCatalog = true } = {}) {
 }
 
 function revealApp() {
-    document.body.classList.remove('profile-gate-active');
+    hideLandingGate();
+    document.body.classList.remove('profile-gate-active', 'landing-gate-active', 'auth-gate-active');
+    startNotificationsPolling();
 }
 
 function openProfileGate(view = 'select') {
