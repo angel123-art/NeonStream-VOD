@@ -4,6 +4,10 @@
  */
 
 // Configuration
+// Supabase
+const SUPABASE_URL = 'https://hqsphvlzvkjqxrydayba.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_BoriF9VG7pT70QcWs_hXXg_r-3qjvpV';
+
 const API_KEY = '42d673667b21f76c723454b10c6a9252';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
@@ -13,16 +17,8 @@ const LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 const HOME_REFRESH_MS = 20 * 60 * 1000;
 const MY_LIST_KEY = 'netflix_my_list';
 const PROFILE_SESSION_KEY = 'netflix_active_profile';
-const PROFILES_STORAGE_KEY = 'netflix_profiles';
 const MAX_PROFILES = 5;
 const CARD_HOVER_DELAY_MS = 1200;
-
-const DEFAULT_PROFILES = [
-    { id: 'p_default_1', name: 'Alex', avatar: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png' },
-    { id: 'p_default_2', name: 'María', avatar: 'https://ui-avatars.com/api/?name=Mar%C3%ADa&background=E50914&color=fff&size=256&bold=true&format=png' },
-    { id: 'p_default_3', name: 'Carlos', avatar: 'https://ui-avatars.com/api/?name=Carlos&background=0080FF&color=fff&size=256&bold=true&format=png' },
-    { id: 'p_default_4', name: 'Niños', avatar: 'https://ui-avatars.com/api/?name=Kids&background=46D369&color=fff&size=256&bold=true&format=png' }
-];
 
 const AVATAR_PRESETS = [
     { id: 'classic', url: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png' },
@@ -36,6 +32,16 @@ const AVATAR_PRESETS = [
 ];
 
 const elements = {
+    authGate: document.getElementById('auth-gate'),
+    authForm: document.getElementById('auth-form'),
+    authEmail: document.getElementById('auth-email'),
+    authPassword: document.getElementById('auth-password'),
+    authError: document.getElementById('auth-error'),
+    authSuccess: document.getElementById('auth-success'),
+    authSubmitBtn: document.getElementById('auth-submit-btn'),
+    authToggleBtn: document.getElementById('auth-toggle-btn'),
+    authGateTitle: document.getElementById('auth-gate-title'),
+    authHint: document.getElementById('auth-hint'),
     catalogSection: document.getElementById('catalog-section'),
     playerSection: document.getElementById('player-section'),
     heroSection: document.getElementById('hero-section'),
@@ -70,6 +76,7 @@ const elements = {
     profileEditorError: document.getElementById('profile-editor-error'),
     profileDeleteBtn: document.getElementById('profile-delete-btn'),
     profileCancelBtn: document.getElementById('profile-cancel-btn'),
+    profileSignoutBtn: document.getElementById('profile-signout-btn'),
     profileBtn: document.getElementById('profile-btn'),
     tadumAudio: document.getElementById('tadum-audio'),
     detailAddListBtn: document.getElementById('detail-add-list-btn'),
@@ -129,20 +136,22 @@ const trailerCache = new Map();
 let editingProfileId = null;
 let selectedAvatarUrl = AVATAR_PRESETS[0].url;
 let profileGateInitialized = false;
+let authGateInitialized = false;
+let authMode = 'login';
+let supabaseClient = null;
+let currentUser = null;
+let userProfiles = [];
+let profilesLoading = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
     setupNavbarScroll();
     setupSearchToggle();
+    setupAuthGate();
     setupProfileGate();
     setupCardHoverTrailers();
     setupHeroVolumeControl();
-
-    if (getActiveProfile()) {
-        updateNavbarProfileAvatar(getActiveProfile());
-        revealApp();
-        checkUrlState();
-    }
+    await initAuth();
 });
 
 function setupSearchToggle() {
@@ -164,28 +173,284 @@ function setupSearchToggle() {
 }
 
 // ============================================
-// Profile Gate — CRUD con localStorage
+// Supabase Auth — Login / Registro
 // ============================================
-function getProfiles() {
-    try {
-        const raw = localStorage.getItem(PROFILES_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.filter(p => p.id && p.name && p.avatar);
-        }
-    } catch {
-        /* usar defaults */
+function initSupabaseClient() {
+    if (!window.supabase?.createClient) {
+        console.error('Supabase JS no cargó. Verifica el script CDN en index.html.');
+        return null;
     }
-    saveProfiles(DEFAULT_PROFILES);
-    return [...DEFAULT_PROFILES];
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-function saveProfiles(profiles) {
-    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles));
+function setupAuthGate() {
+    if (!elements.authForm || authGateInitialized) return;
+    authGateInitialized = true;
+
+    elements.authForm.addEventListener('submit', handleAuthSubmit);
+    elements.authToggleBtn?.addEventListener('click', toggleAuthMode);
 }
 
-function generateProfileId() {
-    return `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    updateAuthUI();
+    hideAuthMessages();
+    elements.authEmail?.focus();
+}
+
+function updateAuthUI() {
+    const isLogin = authMode === 'login';
+
+    if (elements.authGateTitle) {
+        elements.authGateTitle.textContent = isLogin ? 'Iniciar sesión' : 'Registrarse';
+    }
+    if (elements.authSubmitBtn) {
+        elements.authSubmitBtn.textContent = isLogin ? 'Iniciar sesión' : 'Registrarse';
+    }
+    if (elements.authToggleBtn) {
+        elements.authToggleBtn.innerHTML = isLogin
+            ? '¿Primera vez en Netflix? <span>Regístrate ahora</span>'
+            : '¿Ya tienes cuenta? <span>Inicia sesión</span>';
+    }
+    if (elements.authEmail) {
+        elements.authEmail.placeholder = 'nombre@ejemplo.com';
+        elements.authEmail.autocomplete = isLogin ? 'email' : 'email';
+    }
+    if (elements.authPassword) {
+        elements.authPassword.autocomplete = isLogin ? 'current-password' : 'new-password';
+    }
+    if (elements.authHint) {
+        elements.authHint.textContent = isLogin
+            ? 'Usa el correo electrónico con el que te registraste.'
+            : 'Al registrarte aceptas nuestros Términos de uso y Política de privacidad.';
+    }
+}
+
+function showAuthGate() {
+    document.body.classList.add('auth-gate-active', 'profile-gate-active');
+    elements.authGate?.classList.remove('hidden');
+    elements.profileGate?.classList.add('hidden');
+    updateAuthUI();
+    hideAuthMessages();
+}
+
+function hideAuthGate() {
+    document.body.classList.remove('auth-gate-active');
+    elements.authGate?.classList.add('hidden');
+}
+
+function showAuthError(message) {
+    if (!elements.authError) return;
+    elements.authError.textContent = message;
+    elements.authError.classList.remove('hidden');
+    elements.authSuccess?.classList.add('hidden');
+}
+
+function showAuthSuccess(message) {
+    if (!elements.authSuccess) return;
+    elements.authSuccess.textContent = message;
+    elements.authSuccess.classList.remove('hidden');
+    elements.authError?.classList.add('hidden');
+}
+
+function hideAuthMessages() {
+    elements.authError?.classList.add('hidden');
+    elements.authSuccess?.classList.add('hidden');
+}
+
+function setAuthLoading(loading) {
+    if (elements.authSubmitBtn) {
+        elements.authSubmitBtn.disabled = loading;
+        elements.authSubmitBtn.textContent = loading
+            ? 'Procesando...'
+            : (authMode === 'login' ? 'Iniciar sesión' : 'Registrarse');
+    }
+}
+
+function normalizeAuthEmail(input) {
+    const value = input.trim();
+    if (!value) return '';
+    if (value.includes('@')) return value.toLowerCase();
+    return value.toLowerCase();
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    hideAuthMessages();
+
+    if (!supabaseClient) {
+        showAuthError('Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY.');
+        return;
+    }
+
+    const email = normalizeAuthEmail(elements.authEmail?.value || '');
+    const password = elements.authPassword?.value || '';
+
+    if (!email) {
+        showAuthError('Introduce tu correo electrónico.');
+        return;
+    }
+    if (password.length < 6) {
+        showAuthError('La contraseña debe tener al menos 6 caracteres.');
+        return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+        if (authMode === 'register') {
+            if (!email.includes('@')) {
+                showAuthError('Para registrarte debes usar un correo electrónico válido.');
+                return;
+            }
+
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) throw error;
+
+            if (data.session) {
+                showAuthSuccess('¡Cuenta creada! Cargando tus perfiles...');
+            } else {
+                showAuthSuccess('Revisa tu correo para confirmar la cuenta antes de iniciar sesión.');
+                authMode = 'login';
+                updateAuthUI();
+            }
+        } else {
+            if (!email.includes('@')) {
+                showAuthError('Introduce un correo electrónico válido.');
+                return;
+            }
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+        }
+    } catch (err) {
+        showAuthError(getAuthErrorMessage(err));
+    } finally {
+        setAuthLoading(false);
+    }
+}
+
+function getAuthErrorMessage(err) {
+    const msg = err?.message || 'Error de autenticación.';
+    if (/invalid login credentials/i.test(msg)) return 'Correo o contraseña incorrectos.';
+    if (/email not confirmed/i.test(msg)) return 'Confirma tu correo antes de iniciar sesión.';
+    if (/user already registered/i.test(msg)) return 'Este correo ya está registrado. Inicia sesión.';
+    return msg;
+}
+
+async function initAuth() {
+    supabaseClient = initSupabaseClient();
+    if (!supabaseClient) {
+        showAuthGate();
+        showAuthError('No se pudo inicializar Supabase. Verifica la configuración.');
+        return;
+    }
+
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'INITIAL_SESSION') {
+            if (session?.user) await onUserAuthenticated(session.user);
+            else showAuthGate();
+            return;
+        }
+        if (event === 'SIGNED_IN' && session?.user) {
+            await onUserAuthenticated(session.user);
+        } else if (event === 'SIGNED_OUT') {
+            onUserSignedOut();
+        }
+    });
+}
+
+async function onUserAuthenticated(user) {
+    currentUser = user;
+    hideAuthGate();
+
+    elements.profileGate?.classList.remove('hidden');
+    document.body.classList.add('profile-gate-active');
+
+    try {
+        await loadUserProfiles();
+    } catch (err) {
+        console.error('Error cargando perfiles:', err);
+        showProfileGridError('No se pudieron cargar tus perfiles. Intenta de nuevo.');
+        return;
+    }
+
+    renderProfileSelectGrid();
+
+    const active = getActiveProfile();
+    const stillValid = active && userProfiles.some(p => p.id === active.id);
+
+    if (stillValid) {
+        updateNavbarProfileAvatar(active);
+        revealApp();
+        elements.profileGate?.classList.add('hidden');
+        document.body.classList.remove('profile-gate-active');
+        checkUrlState();
+    } else {
+        sessionStorage.removeItem(PROFILE_SESSION_KEY);
+        if (userProfiles.length === 0) {
+            openProfileGate('manage');
+        } else {
+            openProfileGate('select');
+        }
+    }
+}
+
+function onUserSignedOut() {
+    currentUser = null;
+    userProfiles = [];
+    sessionStorage.removeItem(PROFILE_SESSION_KEY);
+    closeProfileEditor();
+    closeProfileManage();
+    elements.profileGate?.classList.add('hidden');
+    elements.authForm?.reset();
+    hideAuthMessages();
+    authMode = 'login';
+    updateAuthUI();
+    showAuthGate();
+}
+
+async function handleSignOut() {
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
+}
+
+// ============================================
+// Profile Gate — CRUD con Supabase (tabla perfiles)
+// ============================================
+function mapProfileFromDb(row) {
+    return {
+        id: row.id,
+        user_id: row.user_id,
+        name: row.nombre,
+        avatar: row.avatar || AVATAR_PRESETS[0].url
+    };
+}
+
+async function loadUserProfiles() {
+    if (!supabaseClient || !currentUser) {
+        userProfiles = [];
+        return userProfiles;
+    }
+
+    profilesLoading = true;
+
+    const { data, error } = await supabaseClient
+        .from('perfiles')
+        .select('id, user_id, nombre, avatar, created_at')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: true });
+
+    profilesLoading = false;
+
+    if (error) throw error;
+
+    userProfiles = (data || []).map(mapProfileFromDb);
+    return userProfiles;
+}
+
+function getProfiles() {
+    return userProfiles;
 }
 
 function getActiveProfile() {
@@ -193,8 +458,7 @@ function getActiveProfile() {
         const raw = sessionStorage.getItem(PROFILE_SESSION_KEY);
         if (!raw) return null;
         const active = JSON.parse(raw);
-        const profiles = getProfiles();
-        return profiles.find(p => p.id === active.id) || null;
+        return userProfiles.find(p => p.id === active.id) || null;
     } catch {
         return null;
     }
@@ -209,7 +473,6 @@ function setupProfileGate() {
     if (!elements.profileGrid || profileGateInitialized) return;
     profileGateInitialized = true;
 
-    renderProfileSelectGrid();
     renderAvatarPicker();
 
     elements.profileGrid.addEventListener('click', (e) => {
@@ -231,6 +494,7 @@ function setupProfileGate() {
 
     elements.profileManageBtn?.addEventListener('click', openProfileManage);
     elements.profileDoneBtn?.addEventListener('click', closeProfileManage);
+    elements.profileSignoutBtn?.addEventListener('click', handleSignOut);
     elements.profileBtn?.addEventListener('click', () => openProfileGate('select'));
     elements.profileCancelBtn?.addEventListener('click', closeProfileEditor);
     elements.profileDeleteBtn?.addEventListener('click', handleDeleteProfile);
@@ -247,10 +511,28 @@ function setupProfileGate() {
     });
 }
 
+function showProfileGridError(message) {
+    if (elements.profileGrid) {
+        elements.profileGrid.innerHTML = `<p class="profile-grid-error">${escapeHtml(message)}</p>`;
+    }
+}
+
 function renderProfileSelectGrid() {
     if (!elements.profileGrid) return;
 
+    if (profilesLoading) {
+        elements.profileGrid.innerHTML = '<p class="profile-grid-loading">Cargando perfiles...</p>';
+        return;
+    }
+
     const profiles = getProfiles();
+
+    if (profiles.length === 0) {
+        elements.profileGrid.innerHTML = `
+            <p class="profile-grid-empty">Aún no tienes perfiles. Pulsa «Administrar perfiles» para crear uno.</p>`;
+        return;
+    }
+
     elements.profileGrid.innerHTML = profiles.map(profile => `
         <button type="button" class="profile-item" data-profile-id="${profile.id}" aria-label="Perfil ${escapeHtml(profile.name)}">
             <img class="profile-item-avatar" src="${profile.avatar}" alt="${escapeHtml(profile.name)}" width="132" height="132">
@@ -261,6 +543,11 @@ function renderProfileSelectGrid() {
 
 function renderProfileManageGrid() {
     if (!elements.profileManageGrid) return;
+
+    if (profilesLoading) {
+        elements.profileManageGrid.innerHTML = '<p class="profile-grid-loading">Cargando perfiles...</p>';
+        return;
+    }
 
     const profiles = getProfiles();
     let html = profiles.map(profile => `
@@ -327,7 +614,7 @@ function openProfileEditor(profileId) {
         elements.profileEditorAvatarPreview.src = selectedAvatarUrl;
     }
 
-    elements.profileDeleteBtn?.classList.toggle('hidden', !isEdit || getProfiles().length <= 1);
+    elements.profileDeleteBtn?.classList.toggle('hidden', !isEdit);
     hideProfileEditorError();
     updateAvatarPickerSelection();
 
@@ -354,6 +641,14 @@ function hideProfileEditorError() {
 
 function handleProfileFormSubmit(e) {
     e.preventDefault();
+    handleProfileFormSubmitAsync();
+}
+
+async function handleProfileFormSubmitAsync() {
+    if (!supabaseClient || !currentUser) {
+        showProfileEditorError('Debes iniciar sesión para guardar perfiles.');
+        return;
+    }
 
     const name = elements.profileEditorName?.value.trim();
     if (!name) {
@@ -366,69 +661,128 @@ function handleProfileFormSubmit(e) {
     }
 
     const profiles = getProfiles();
-
-    if (editingProfileId) {
-        const idx = profiles.findIndex(p => p.id === editingProfileId);
-        if (idx === -1) return;
-
-        const duplicate = profiles.some((p, i) => i !== idx && p.name.toLowerCase() === name.toLowerCase());
-        if (duplicate) {
-            showProfileEditorError('Ya existe un perfil con ese nombre.');
-            return;
-        }
-
-        profiles[idx] = { ...profiles[idx], name, avatar: selectedAvatarUrl };
-        saveProfiles(profiles);
-
-        const active = getActiveProfile();
-        if (active?.id === editingProfileId) {
-            setActiveProfile(profiles[idx]);
-        }
-    } else {
-        if (profiles.length >= MAX_PROFILES) {
-            showProfileEditorError(`Máximo ${MAX_PROFILES} perfiles permitidos.`);
-            return;
-        }
-
-        const duplicate = profiles.some(p => p.name.toLowerCase() === name.toLowerCase());
-        if (duplicate) {
-            showProfileEditorError('Ya existe un perfil con ese nombre.');
-            return;
-        }
-
-        profiles.push({ id: generateProfileId(), name, avatar: selectedAvatarUrl });
-        saveProfiles(profiles);
+    const saveBtn = document.getElementById('profile-save-btn');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
     }
 
-    closeProfileEditor();
-    renderProfileManageGrid();
-    renderProfileSelectGrid();
+    try {
+        if (editingProfileId) {
+            const duplicate = profiles.some(
+                p => p.id !== editingProfileId && p.name.toLowerCase() === name.toLowerCase()
+            );
+            if (duplicate) {
+                showProfileEditorError('Ya existe un perfil con ese nombre.');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('perfiles')
+                .update({ nombre: name, avatar: selectedAvatarUrl })
+                .eq('id', editingProfileId)
+                .eq('user_id', currentUser.id)
+                .select('id, user_id, nombre, avatar, created_at')
+                .single();
+
+            if (error) throw error;
+
+            await loadUserProfiles();
+
+            const active = getActiveProfile();
+            const updated = mapProfileFromDb(data);
+            if (active?.id === editingProfileId) {
+                setActiveProfile(updated);
+            }
+        } else {
+            if (profiles.length >= MAX_PROFILES) {
+                showProfileEditorError(`Máximo ${MAX_PROFILES} perfiles permitidos.`);
+                return;
+            }
+
+            const duplicate = profiles.some(p => p.name.toLowerCase() === name.toLowerCase());
+            if (duplicate) {
+                showProfileEditorError('Ya existe un perfil con ese nombre.');
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from('perfiles')
+                .insert({
+                    user_id: currentUser.id,
+                    nombre: name,
+                    avatar: selectedAvatarUrl
+                });
+
+            if (error) throw error;
+
+            await loadUserProfiles();
+        }
+
+        closeProfileEditor();
+        renderProfileManageGrid();
+        renderProfileSelectGrid();
+    } catch (err) {
+        console.error('Error guardando perfil:', err);
+        showProfileEditorError(err.message || 'No se pudo guardar el perfil.');
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Guardar';
+        }
+    }
 }
 
 function handleDeleteProfile() {
-    if (!editingProfileId) return;
+    handleDeleteProfileAsync();
+}
+
+async function handleDeleteProfileAsync() {
+    if (!editingProfileId || !supabaseClient || !currentUser) return;
 
     const profiles = getProfiles();
-    if (profiles.length <= 1) {
-        showProfileEditorError('Debe quedar al menos un perfil activo.');
-        return;
+    const deleted = profiles.find(p => p.id === editingProfileId);
+    if (!deleted) return;
+
+    const deleteBtn = elements.profileDeleteBtn;
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'Eliminando...';
     }
 
-    const idx = profiles.findIndex(p => p.id === editingProfileId);
-    if (idx === -1) return;
+    try {
+        const { error } = await supabaseClient
+            .from('perfiles')
+            .delete()
+            .eq('id', editingProfileId)
+            .eq('user_id', currentUser.id);
 
-    const deleted = profiles[idx];
-    profiles.splice(idx, 1);
-    saveProfiles(profiles);
+        if (error) throw error;
 
-    const active = getActiveProfile();
-    if (active?.id === deleted.id) {
-        setActiveProfile(profiles[0]);
+        await loadUserProfiles();
+
+        const active = getActiveProfile();
+        if (active?.id === deleted.id) {
+            const remaining = getProfiles();
+            if (remaining.length > 0) {
+                setActiveProfile(remaining[0]);
+            } else {
+                sessionStorage.removeItem(PROFILE_SESSION_KEY);
+            }
+        }
+
+        closeProfileEditor();
+        renderProfileManageGrid();
+        renderProfileSelectGrid();
+    } catch (err) {
+        console.error('Error eliminando perfil:', err);
+        showProfileEditorError(err.message || 'No se pudo eliminar el perfil.');
+    } finally {
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Eliminar perfil';
+        }
     }
-
-    closeProfileEditor();
-    renderProfileManageGrid();
-    renderProfileSelectGrid();
 }
 
 function escapeHtml(str) {

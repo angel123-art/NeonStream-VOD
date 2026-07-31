@@ -13,15 +13,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="profile-gate-active">
+<body class="auth-gate-active profile-gate-active">
+    <!-- Pantalla de autenticación — Login / Registro -->
+    <div id="auth-gate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+        <div class="auth-gate-inner">
+            <img class="auth-logo" src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" width="167" height="45">
+            <h1 id="auth-gate-title" class="auth-gate-title">Iniciar sesión</h1>
+            <form id="auth-form" class="auth-form" novalidate>
+                <label class="auth-label" for="auth-email">Correo electrónico</label>
+                <input type="email" id="auth-email" class="auth-input" placeholder="nombre@ejemplo.com" autocomplete="email" required>
+                <label class="auth-label" for="auth-password">Contraseña</label>
+                <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" autocomplete="current-password" minlength="6" required>
+                <p class="auth-error hidden" id="auth-error"></p>
+                <p class="auth-success hidden" id="auth-success"></p>
+                <button type="submit" class="auth-submit-btn" id="auth-submit-btn">Iniciar sesión</button>
+            </form>
+            <button type="button" class="auth-toggle-btn" id="auth-toggle-btn">¿Primera vez en Netflix? <span>Regístrate ahora</span></button>
+            <p class="auth-hint" id="auth-hint">Al registrarte aceptas nuestros Términos de uso y Política de privacidad.</p>
+        </div>
+    </div>
+
     <!-- Pantalla de perfiles — ¿Quién está viendo? -->
-    <div id="profile-gate" class="profile-gate" role="dialog" aria-modal="true" aria-labelledby="profile-gate-title">
+    <div id="profile-gate" class="profile-gate hidden" role="dialog" aria-modal="true" aria-labelledby="profile-gate-title">
         <!-- Vista: selección de perfil -->
         <div id="profile-select-view" class="profile-gate-view">
             <div class="profile-gate-inner">
                 <h1 id="profile-gate-title" class="profile-gate-title">¿Quién está viendo ahora?</h1>
                 <div class="profile-grid" id="profile-grid"></div>
                 <button type="button" class="profile-manage-btn" id="profile-manage-btn">Administrar perfiles</button>
+                <button type="button" class="profile-signout-btn" id="profile-signout-btn">Cerrar sesión</button>
             </div>
         </div>
 
@@ -269,6 +289,7 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
 </html>

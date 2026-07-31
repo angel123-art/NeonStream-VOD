@@ -1112,6 +1112,190 @@ main {
     max-width: 800px;
 }
 
+/* Auth Gate — Login / Registro */
+body.auth-gate-active .profile-gate {
+    display: none !important;
+}
+
+.auth-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    background: #141414;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 4%;
+}
+
+.auth-gate.hidden {
+    display: none;
+}
+
+.auth-gate-inner {
+    width: 100%;
+    max-width: 450px;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 4px;
+    padding: 3rem 4rem 2.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.auth-logo {
+    display: block;
+    margin-bottom: 2rem;
+}
+
+.auth-gate-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1.75rem;
+    color: var(--text-primary);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.auth-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+}
+
+.auth-input {
+    width: 100%;
+    background: #333;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    outline: none;
+    transition: background var(--transition-speed);
+}
+
+.auth-input:focus {
+    background: #454545;
+}
+
+.auth-error,
+.auth-success {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+.auth-error {
+    color: var(--netflix-red);
+}
+
+.auth-success {
+    color: #46d369;
+}
+
+.auth-error.hidden,
+.auth-success.hidden {
+    display: none;
+}
+
+.auth-submit-btn {
+    width: 100%;
+    background: var(--netflix-red);
+    color: #fff;
+    border: none;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    transition: background var(--transition-speed);
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+    background: #f40612;
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.auth-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+}
+
+.auth-toggle-btn span {
+    color: #fff;
+    font-weight: 500;
+}
+
+.auth-toggle-btn:hover span {
+    text-decoration: underline;
+}
+
+.auth-hint {
+    margin-top: 1.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.profile-signout-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    transition: color var(--transition-speed);
+}
+
+.profile-signout-btn:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+
+.profile-grid-loading {
+    color: var(--text-muted);
+    font-size: 1rem;
+    padding: 2rem;
+}
+
+.profile-grid-empty {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-grid-error {
+    color: var(--netflix-red);
+    font-size: 1rem;
+    padding: 2rem;
+}
+
+@media (max-width: 480px) {
+    .auth-gate-inner {
+        padding: 2rem 1.5rem;
+    }
+}
+
 /* Profile Gate — ¿Quién está viendo? */
 body .navbar,
 body #main-content,
