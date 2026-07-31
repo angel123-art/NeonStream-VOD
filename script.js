@@ -7,7 +7,7 @@
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
-const APP_BUILD = '20260731-supabase-url-fix';
+const APP_BUILD = '20260731-auth-redirect';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
@@ -19,6 +19,34 @@ function normalizeSupabaseUrl(url) {
 
 function getSupabaseProjectUrl() {
     return normalizeSupabaseUrl(SUPABASE_URL);
+}
+
+/**
+ * URL de retorno tras confirmar correo u OAuth.
+ * En GitHub Pages la app vive en /NeonStream-VOD/, no solo en el origin.
+ */
+function getAuthRedirectUrl() {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+
+    let path = url.pathname.replace(/\/index\.html$/i, '');
+    if (!path.endsWith('/')) {
+        const lastSegment = path.split('/').pop() || '';
+        path = lastSegment.includes('.')
+            ? path.slice(0, path.lastIndexOf('/') + 1)
+            : `${path}/`;
+    }
+
+    return `${url.origin}${path}`;
+}
+
+function cleanAuthCallbackFromUrl() {
+    const hash = window.location.hash;
+    if (!hash) return;
+    if (/access_token|refresh_token|type=signup|type=recovery|type=magiclink/i.test(hash)) {
+        window.history.replaceState({}, document.title, getAuthRedirectUrl());
+    }
 }
 
 const API_KEY = '42d673667b21f76c723454b10c6a9252';
@@ -317,11 +345,16 @@ function initSupabaseClient() {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: true
+            detectSessionInUrl: true,
+            flowType: 'pkce'
         }
     });
 
-    console.info('[Supabase] Cliente inicializado', { url: projectUrl, keyType: getSupabaseKeyType() });
+    console.info('[Supabase] Cliente inicializado', {
+        url: projectUrl,
+        keyType: getSupabaseKeyType(),
+        redirectTo: getAuthRedirectUrl()
+    });
     return client;
 }
 
@@ -446,9 +479,14 @@ async function handleAuthSubmit(e) {
                 return;
             }
 
-            console.info('[Supabase Auth] signUp →', { email, url: getSupabaseProjectUrl() });
+            const redirectTo = getAuthRedirectUrl();
+            console.info('[Supabase Auth] signUp →', { email, url: getSupabaseProjectUrl(), redirectTo });
 
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: { emailRedirectTo: redirectTo }
+            });
 
             if (error) {
                 logSupabaseError('signUp', error, { email });
@@ -520,7 +558,9 @@ async function initAuth() {
     console.info(`[NeonStream] Build ${APP_BUILD}`);
     console.info('[Supabase] Config activa →', {
         url: getSupabaseProjectUrl(),
-        keyType: getSupabaseKeyType()
+        keyType: getSupabaseKeyType(),
+        redirectTo: getAuthRedirectUrl(),
+        origin: window.location.origin
     });
 
     supabaseClient = initSupabaseClient();
@@ -565,6 +605,7 @@ async function initAuth() {
 
 async function onUserAuthenticated(user) {
     currentUser = user;
+    cleanAuthCallbackFromUrl();
     hideAuthGate();
 
     elements.profileGate?.classList.remove('hidden');
