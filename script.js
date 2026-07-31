@@ -4,9 +4,21 @@
  */
 
 // Configuration
-// Supabase
+// Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqxrydayba.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_BoriF9VG7pT70QcWs_hXXg_r-3qjvpV';
+
+/** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
+function normalizeSupabaseUrl(url) {
+    return url
+        .trim()
+        .replace(/\/rest\/v1\/?$/i, '')
+        .replace(/\/+$/, '');
+}
+
+function getSupabaseProjectUrl() {
+    return normalizeSupabaseUrl(SUPABASE_URL);
+}
 
 const API_KEY = '42d673667b21f76c723454b10c6a9252';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -175,12 +187,153 @@ function setupSearchToggle() {
 // ============================================
 // Supabase Auth — Login / Registro
 // ============================================
+function validateSupabaseConfig() {
+    const issues = [];
+    const projectUrl = getSupabaseProjectUrl();
+
+    if (!projectUrl || !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(projectUrl)) {
+        issues.push('SUPABASE_URL debe ser https://TU-PROYECTO.supabase.co (sin /rest/v1/ al final).');
+    }
+
+    const key = SUPABASE_ANON_KEY.trim();
+    if (!key || key.length < 20) {
+        issues.push('SUPABASE_ANON_KEY está vacía o parece inválida.');
+    } else if (!key.startsWith('sb_publishable_') && !key.startsWith('eyJ')) {
+        issues.push('La clave debe ser publishable (sb_publishable_...) o anon JWT (eyJ...).');
+    }
+
+    return issues;
+}
+
+function getSupabaseKeyType() {
+    if (SUPABASE_ANON_KEY.startsWith('sb_publishable_')) return 'publishable';
+    if (SUPABASE_ANON_KEY.startsWith('eyJ')) return 'anon-jwt';
+    return 'desconocido';
+}
+
+function logSupabaseError(context, err, extra = {}) {
+    console.group(`[Supabase] Error — ${context}`);
+    console.error('Mensaje:', err?.message || err);
+    console.error('Nombre:', err?.name);
+    console.error('Código:', err?.code);
+    console.error('Status HTTP:', err?.status);
+    console.error('Detalles:', err?.details);
+    console.error('Hint:', err?.hint);
+    console.error('URL configurada:', getSupabaseProjectUrl());
+    console.error('Tipo de clave:', getSupabaseKeyType());
+    if (Object.keys(extra).length) console.error('Contexto extra:', extra);
+    console.error('Objeto completo:', err);
+    console.groupEnd();
+}
+
+async function testSupabaseConnection() {
+    const baseUrl = getSupabaseProjectUrl();
+    const healthUrl = `${baseUrl}/auth/v1/health`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    try {
+        const response = await fetch(healthUrl, {
+            method: 'GET',
+            headers: {
+                apikey: SUPABASE_ANON_KEY.trim(),
+                Accept: 'application/json'
+            },
+            signal: controller.signal,
+            mode: 'cors',
+            credentials: 'omit'
+        });
+
+        clearTimeout(timeoutId);
+
+        let body = '';
+        try {
+            body = (await response.text()).slice(0, 300);
+        } catch {
+            body = '(sin cuerpo)';
+        }
+
+        return {
+            ok: response.ok,
+            status: response.status,
+            statusText: response.statusText,
+            url: healthUrl,
+            body
+        };
+    } catch (err) {
+        clearTimeout(timeoutId);
+
+        const message = err?.message || String(err);
+        const isFailedFetch = /failed to fetch|networkerror|network request failed|load failed|err_name_not_resolved|enotfound|getaddrinfo/i.test(message);
+        const isAbort = err?.name === 'AbortError';
+
+        return {
+            ok: false,
+            url: healthUrl,
+            errorName: err?.name,
+            errorMessage: message,
+            isFailedFetch,
+            isAbort,
+            isDnsFailure: isFailedFetch || /not resolved|enotfound|getaddrinfo/i.test(message)
+        };
+    }
+}
+
+function formatConnectionError(result) {
+    if (result.isAbort) {
+        return `Supabase no respondió a tiempo (${result.url}). El proyecto puede estar pausado o la URL es incorrecta.`;
+    }
+
+    if (result.isDnsFailure || result.isFailedFetch) {
+        return [
+            `No se pudo conectar con Supabase en ${getSupabaseProjectUrl()}.`,
+            'Posibles causas:',
+            '• URL del proyecto incorrecta (verifica en Supabase → Settings → API → Project URL).',
+            '• Proyecto pausado o eliminado.',
+            '• Bloqueo de red, firewall o extensión del navegador.',
+            `Detalle técnico: ${result.errorMessage || 'Failed to fetch'}`
+        ].join(' ');
+    }
+
+    if (result.status) {
+        return `Supabase respondió HTTP ${result.status} (${result.statusText || 'error'}) en ${result.url}.`;
+    }
+
+    return result.errorMessage || 'Error desconocido al conectar con Supabase.';
+}
+
 function initSupabaseClient() {
     if (!window.supabase?.createClient) {
-        console.error('Supabase JS no cargó. Verifica el script CDN en index.html.');
+        console.error('[Supabase] El CDN no cargó. window.supabase =', window.supabase);
         return null;
     }
-    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const projectUrl = getSupabaseProjectUrl();
+    const anonKey = SUPABASE_ANON_KEY.trim();
+
+    const client = window.supabase.createClient(projectUrl, anonKey, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage,
+            storageKey: 'neonstream-supabase-auth'
+        },
+        global: {
+            headers: {
+                'X-Client-Info': 'neonstream-vod-github-pages'
+            }
+        }
+    });
+
+    console.info('[Supabase] Cliente inicializado', {
+        url: projectUrl,
+        keyType: getSupabaseKeyType(),
+        keyPreview: `${anonKey.slice(0, 20)}...`,
+        origin: window.location.origin
+    });
+
+    return client;
 }
 
 function setupAuthGate() {
@@ -304,8 +457,16 @@ async function handleAuthSubmit(e) {
                 return;
             }
 
+            console.info('[Supabase Auth] signUp →', { email, url: getSupabaseProjectUrl() });
+
             const { data, error } = await supabaseClient.auth.signUp({ email, password });
-            if (error) throw error;
+
+            if (error) {
+                logSupabaseError('signUp', error, { email });
+                throw error;
+            }
+
+            console.info('[Supabase Auth] signUp OK', { hasSession: Boolean(data.session), userId: data.user?.id });
 
             if (data.session) {
                 showAuthSuccess('¡Cuenta creada! Cargando tus perfiles...');
@@ -320,33 +481,78 @@ async function handleAuthSubmit(e) {
                 return;
             }
 
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) throw error;
+            console.info('[Supabase Auth] signInWithPassword →', { email, url: getSupabaseProjectUrl() });
+
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                logSupabaseError('signInWithPassword', error, { email });
+                throw error;
+            }
+
+            console.info('[Supabase Auth] signIn OK', { userId: data.user?.id });
         }
     } catch (err) {
-        showAuthError(getAuthErrorMessage(err));
+        showAuthError(getAuthErrorMessage(err, authMode === 'register' ? 'signUp' : 'signIn'));
     } finally {
         setAuthLoading(false);
     }
 }
 
-function getAuthErrorMessage(err) {
-    const msg = err?.message || 'Error de autenticación.';
+function getAuthErrorMessage(err, context = 'auth') {
+    const msg = err?.message || String(err);
+
+    logSupabaseError(context, err);
+
+    if (/failed to fetch|networkerror|network request failed|load failed|err_name_not_resolved|enotfound|getaddrinfo/i.test(msg)) {
+        return [
+            'Error de red: no se pudo contactar Supabase.',
+            `URL actual: ${getSupabaseProjectUrl()}`,
+            'Revisa en Supabase Dashboard → Settings → API que la Project URL sea exactamente esa.',
+            'Si usas sb_publishable_ y sigue fallando, prueba con la clave anon (JWT eyJ...) de Legacy API Keys.',
+            `Detalle: ${msg}`
+        ].join(' ');
+    }
+
+    if (/invalid api key|invalid jwt|unauthorized/i.test(msg)) {
+        return 'Clave API inválida. Copia la Publishable key o la anon key (JWT) desde Supabase → Settings → API Keys.';
+    }
+
     if (/invalid login credentials/i.test(msg)) return 'Correo o contraseña incorrectos.';
     if (/email not confirmed/i.test(msg)) return 'Confirma tu correo antes de iniciar sesión.';
-    if (/user already registered/i.test(msg)) return 'Este correo ya está registrado. Inicia sesión.';
-    return msg;
+    if (/user already registered|already been registered/i.test(msg)) return 'Este correo ya está registrado. Inicia sesión.';
+    if (/signup is disabled/i.test(msg)) return 'El registro está deshabilitado en Supabase Auth.';
+    if (/rate limit|too many requests/i.test(msg)) return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
+
+    return msg || 'Error de autenticación desconocido.';
 }
 
 async function initAuth() {
     supabaseClient = initSupabaseClient();
     if (!supabaseClient) {
         showAuthGate();
-        showAuthError('No se pudo inicializar Supabase. Verifica la configuración.');
+        showAuthError('No se pudo inicializar Supabase. Verifica que el script CDN cargue (F12 → Consola).');
         return;
     }
 
+    const configIssues = validateSupabaseConfig();
+    if (configIssues.length) {
+        showAuthGate();
+        showAuthError(configIssues.join(' '));
+        return;
+    }
+
+    const connection = await testSupabaseConnection();
+    console.info('[Supabase] Prueba de conexión:', connection);
+
+    if (!connection.ok) {
+        showAuthGate();
+        showAuthError(formatConnectionError(connection));
+    }
+
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        console.info('[Supabase Auth] onAuthStateChange', { event, hasSession: Boolean(session) });
+
         if (event === 'INITIAL_SESSION') {
             if (session?.user) await onUserAuthenticated(session.user);
             else showAuthGate();
@@ -443,7 +649,10 @@ async function loadUserProfiles() {
 
     profilesLoading = false;
 
-    if (error) throw error;
+    if (error) {
+        logSupabaseError('loadUserProfiles', error, { userId: currentUser.id });
+        throw error;
+    }
 
     userProfiles = (data || []).map(mapProfileFromDb);
     return userProfiles;
@@ -723,7 +932,7 @@ async function handleProfileFormSubmitAsync() {
         renderProfileManageGrid();
         renderProfileSelectGrid();
     } catch (err) {
-        console.error('Error guardando perfil:', err);
+        logSupabaseError('handleProfileFormSubmit', err, { editingProfileId, name });
         showProfileEditorError(err.message || 'No se pudo guardar el perfil.');
     } finally {
         if (saveBtn) {
@@ -775,7 +984,7 @@ async function handleDeleteProfileAsync() {
         renderProfileManageGrid();
         renderProfileSelectGrid();
     } catch (err) {
-        console.error('Error eliminando perfil:', err);
+        logSupabaseError('handleDeleteProfile', err, { editingProfileId });
         showProfileEditorError(err.message || 'No se pudo eliminar el perfil.');
     } finally {
         if (deleteBtn) {
