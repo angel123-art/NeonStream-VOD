@@ -7,7 +7,7 @@
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
-const APP_BUILD = '20260731-auth-redirect';
+const APP_BUILD = '20260731-profile-persist';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
@@ -58,6 +58,7 @@ const LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 const HOME_REFRESH_MS = 20 * 60 * 1000;
 const MY_LIST_KEY = 'netflix_my_list';
 const PROFILE_SESSION_KEY = 'netflix_active_profile';
+const PROFILE_LOCAL_KEY = 'netflix_active_profile_v1';
 const MAX_PROFILES = 5;
 const CARD_HOVER_DELAY_MS = 1200;
 
@@ -190,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSearchToggle();
     setupAuthGate();
     setupProfileGate();
+    setupProfilePersistence();
     setupCardHoverTrailers();
     setupHeroVolumeControl();
     await initAuth();
@@ -621,29 +623,22 @@ async function onUserAuthenticated(user) {
 
     renderProfileSelectGrid();
 
-    const active = getActiveProfile();
-    const stillValid = active && userProfiles.some(p => p.id === active.id);
+    if (tryRestoreProfileSession({ reloadCatalog: true })) {
+        return;
+    }
 
-    if (stillValid) {
-        updateNavbarProfileAvatar(active);
-        revealApp();
-        elements.profileGate?.classList.add('hidden');
-        document.body.classList.remove('profile-gate-active');
-        checkUrlState();
+    clearActiveProfile(user.id);
+    if (userProfiles.length === 0) {
+        openProfileGate('manage');
     } else {
-        sessionStorage.removeItem(PROFILE_SESSION_KEY);
-        if (userProfiles.length === 0) {
-            openProfileGate('manage');
-        } else {
-            openProfileGate('select');
-        }
+        openProfileGate('select');
     }
 }
 
 function onUserSignedOut() {
+    clearActiveProfile(currentUser?.id);
     currentUser = null;
     userProfiles = [];
-    sessionStorage.removeItem(PROFILE_SESSION_KEY);
     closeProfileEditor();
     closeProfileManage();
     elements.profileGate?.classList.add('hidden');
@@ -700,20 +695,111 @@ function getProfiles() {
     return userProfiles;
 }
 
-function getActiveProfile() {
+function getProfileLocalStorageKey(userId) {
+    return `${PROFILE_LOCAL_KEY}_${userId}`;
+}
+
+function parseStoredProfile(raw) {
+    if (!raw) return null;
     try {
-        const raw = sessionStorage.getItem(PROFILE_SESSION_KEY);
-        if (!raw) return null;
-        const active = JSON.parse(raw);
-        return userProfiles.find(p => p.id === active.id) || null;
+        const parsed = JSON.parse(raw);
+        if (parsed?.id && parsed?.name) return parsed;
     } catch {
-        return null;
+        /* perfil corrupto */
     }
+    return null;
+}
+
+function getActiveProfile() {
+    const userId = currentUser?.id;
+
+    const fromSession = parseStoredProfile(sessionStorage.getItem(PROFILE_SESSION_KEY));
+    if (fromSession) {
+        if (userId && fromSession.user_id && fromSession.user_id !== userId) {
+            sessionStorage.removeItem(PROFILE_SESSION_KEY);
+        } else {
+            const match = userProfiles.find(p => p.id === fromSession.id);
+            return match || fromSession;
+        }
+    }
+
+    if (userId) {
+        const fromLocal = parseStoredProfile(localStorage.getItem(getProfileLocalStorageKey(userId)));
+        if (fromLocal && (!fromLocal.user_id || fromLocal.user_id === userId)) {
+            const match = userProfiles.find(p => p.id === fromLocal.id);
+            const profile = match || fromLocal;
+            sessionStorage.setItem(PROFILE_SESSION_KEY, JSON.stringify(profile));
+            return profile;
+        }
+    }
+
+    return null;
 }
 
 function setActiveProfile(profile) {
-    sessionStorage.setItem(PROFILE_SESSION_KEY, JSON.stringify(profile));
+    if (!profile?.id) return;
+
+    const payload = JSON.stringify(profile);
+    sessionStorage.setItem(PROFILE_SESSION_KEY, payload);
+
+    const userId = profile.user_id || currentUser?.id;
+    if (userId) {
+        localStorage.setItem(getProfileLocalStorageKey(userId), payload);
+    }
+
     updateNavbarProfileAvatar(profile);
+}
+
+function clearActiveProfile(userId = currentUser?.id) {
+    sessionStorage.removeItem(PROFILE_SESSION_KEY);
+    if (userId) {
+        localStorage.removeItem(getProfileLocalStorageKey(userId));
+    }
+}
+
+function isProfileGateVisible() {
+    return !elements.profileGate?.classList.contains('hidden');
+}
+
+function tryRestoreProfileSession({ reloadCatalog = false } = {}) {
+    if (!currentUser) return false;
+
+    const active = getActiveProfile();
+    if (!active) return false;
+
+    const fresh = userProfiles.find(p => p.id === active.id);
+    if (userProfiles.length > 0 && !fresh) {
+        clearActiveProfile(currentUser.id);
+        return false;
+    }
+
+    const profile = fresh || active;
+    setActiveProfile(profile);
+    revealApp();
+    elements.profileGate?.classList.add('hidden');
+    document.body.classList.remove('profile-gate-active');
+
+    if (reloadCatalog) {
+        checkUrlState();
+    }
+
+    return true;
+}
+
+function setupProfilePersistence() {
+    window.addEventListener('pageshow', (event) => {
+        if (!currentUser) return;
+        if (tryRestoreProfileSession()) {
+            console.info('[Perfil] Restaurado tras pageshow', { persisted: event.persisted });
+        }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || !currentUser) return;
+        if (isProfileGateVisible() && tryRestoreProfileSession()) {
+            console.info('[Perfil] Restaurado al volver a la pestaña');
+        }
+    });
 }
 
 function setupProfileGate() {
@@ -1014,7 +1100,7 @@ async function handleDeleteProfileAsync() {
             if (remaining.length > 0) {
                 setActiveProfile(remaining[0]);
             } else {
-                sessionStorage.removeItem(PROFILE_SESSION_KEY);
+                clearActiveProfile(currentUser.id);
             }
         }
 
