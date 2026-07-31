@@ -5,7 +5,7 @@
 
 // Configuration
 // Supabase — URL base del proyecto (sin /rest/v1/)
-const SUPABASE_URL = 'https://hqsphvlzvkjqxrydayba.supabase.co';
+const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
@@ -315,24 +315,11 @@ function initSupabaseClient() {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: true,
-            storage: window.localStorage,
-            storageKey: 'neonstream-supabase-auth'
-        },
-        global: {
-            headers: {
-                'X-Client-Info': 'neonstream-vod-github-pages'
-            }
+            detectSessionInUrl: true
         }
     });
 
-    console.info('[Supabase] Cliente inicializado', {
-        url: projectUrl,
-        keyType: getSupabaseKeyType(),
-        keyPreview: `${anonKey.slice(0, 20)}...`,
-        origin: window.location.origin
-    });
-
+    console.info('[Supabase] Cliente inicializado', { url: projectUrl, keyType: getSupabaseKeyType() });
     return client;
 }
 
@@ -542,13 +529,15 @@ async function initAuth() {
         return;
     }
 
-    const connection = await testSupabaseConnection();
-    console.info('[Supabase] Prueba de conexión:', connection);
-
-    if (!connection.ok) {
-        showAuthGate();
-        showAuthError(formatConnectionError(connection));
-    }
+    // Diagnóstico en consola únicamente — no bloquea el formulario de login
+    testSupabaseConnection()
+        .then((connection) => {
+            console.info('[Supabase] Prueba de conexión:', connection);
+            if (!connection.ok) {
+                console.warn('[Supabase] Advertencia:', formatConnectionError(connection));
+            }
+        })
+        .catch((err) => console.warn('[Supabase] Prueba de conexión falló:', err));
 
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
         console.info('[Supabase Auth] onAuthStateChange', { event, hasSession: Boolean(session) });
