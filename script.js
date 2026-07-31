@@ -56,6 +56,8 @@ function cleanAuthCallbackFromUrl() {
 
 const API_KEY = '42d673667b21f76c723454b10c6a9252';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const KIDS_MOVIE_CERT = '&certification_country=US&certification.lte=PG';
+const KIDS_TV_CERT = '&certification_country=US&certification.lte=TV-PG';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 const BACKDROP_BASE_URL = 'https://image.tmdb.org/t/p/w780';
 const HERO_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
@@ -68,8 +70,8 @@ const MAX_PROFILES = 5;
 const CARD_HOVER_DELAY_MS = 1200;
 const NOTIFICATIONS_POLL_MS = 45000;
 const NOTIFICATIONS_MAX = 15;
-const NOTIFICATION_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w300';
-const NOTIFICATION_FALLBACK_IMAGE = `${NOTIFICATION_IMAGE_BASE_URL}/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg`;
+const NOTIFICATION_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
+const NOTIFICATION_FALLBACK_IMAGE = 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png';
 
 const NOTIFICATION_TEMPLATES = [
     { title: 'Nueva temporada disponible', description: 'Ya puedes ver todos los episodios de {name}.', backdrop: '/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg', mediaId: 66732, mediaType: 'tv' },
@@ -150,6 +152,7 @@ const elements = {
     paginationContainer: document.getElementById('pagination-container'),
     mainNav: document.getElementById('main-nav'),
     logoHome: document.getElementById('logo-home'),
+    netflixKidsLabel: document.getElementById('netflix-kids-label'),
     searchWrapper: document.getElementById('search-wrapper'),
     searchToggle: document.getElementById('search-toggle'),
     notificationsWrapper: document.getElementById('notifications-wrapper'),
@@ -174,6 +177,7 @@ const elements = {
     profileEditorForm: document.getElementById('profile-editor-form'),
     profileEditorTitle: document.getElementById('profile-editor-title'),
     profileEditorName: document.getElementById('profile-editor-name'),
+    profileEditorIsKids: document.getElementById('profile-editor-is-kids'),
     profileEditorAvatarPreview: document.getElementById('profile-editor-avatar-preview'),
     profileAvatarPicker: document.getElementById('profile-avatar-picker'),
     profileEditorError: document.getElementById('profile-editor-error'),
@@ -245,6 +249,7 @@ let authMode = 'login';
 let supabaseClient = null;
 let currentUser = null;
 let userProfiles = [];
+let currentProfile = null;
 let profilesLoading = false;
 let notifications = [];
 let notificationsPollInterval = null;
@@ -380,19 +385,106 @@ function setupNotifications() {
     });
 
     elements.notificationsList?.addEventListener('error', (e) => {
-        const img = e.target;
-        if (!img?.classList?.contains('notifications-thumb')) return;
-        img.onerror = null;
-        img.src = NOTIFICATION_FALLBACK_IMAGE;
-        img.classList.add('notifications-thumb--fallback');
+        handleNotificationThumbError(e.target);
     }, true);
 }
 
+function buildTmdbImageUrl(filePath, baseUrl = NOTIFICATION_IMAGE_BASE_URL) {
+    if (!filePath || typeof filePath !== 'string') return null;
+    const trimmed = filePath.trim();
+    if (!trimmed || trimmed === 'null') return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${baseUrl}${path}`;
+}
+
+function getNotificationImagePath(item) {
+    return item?.poster_path || item?.backdrop_path || item?.thumbnail || null;
+}
+
 function getNotificationThumbnailUrl(pathOrUrl) {
-    if (!pathOrUrl) return NOTIFICATION_FALLBACK_IMAGE;
-    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-    const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
-    return `${NOTIFICATION_IMAGE_BASE_URL}${path}`;
+    return buildTmdbImageUrl(pathOrUrl) || NOTIFICATION_FALLBACK_IMAGE;
+}
+
+function handleNotificationThumbError(img) {
+    if (!img?.classList?.contains('notifications-thumb')) return;
+
+    img.onerror = null;
+    img.src = NOTIFICATION_FALLBACK_IMAGE;
+    img.classList.add('notifications-thumb--fallback');
+
+    const wrap = img.closest('.notifications-thumb-wrap');
+    if (wrap) {
+        wrap.classList.add('notifications-thumb-wrap--fallback');
+        wrap.style.backgroundImage = `url('${NOTIFICATION_FALLBACK_IMAGE}')`;
+    }
+}
+
+window.handleNotificationThumbError = handleNotificationThumbError;
+
+async function fetchNotificationMediaImagePath(mediaId, mediaType) {
+    const cached = loadedMedia[mediaId];
+    if (cached?.poster_path || cached?.backdrop_path) {
+        return cached.poster_path || cached.backdrop_path;
+    }
+
+    try {
+        const response = await fetch(
+            `${TMDB_BASE_URL}/${mediaType}/${mediaId}?api_key=${API_KEY}&language=es-MX`
+        );
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        data.custom_type = mediaType;
+        loadedMedia[data.id] = data;
+        return data.poster_path || data.backdrop_path || null;
+    } catch {
+        return null;
+    }
+}
+
+async function enrichNotificationItem(item) {
+    const existingPath = getNotificationImagePath(item);
+    if (existingPath && buildTmdbImageUrl(existingPath)) {
+        return { ...item, thumbnail: existingPath };
+    }
+
+    if (item.mediaId && item.mediaType) {
+        const fetchedPath = await fetchNotificationMediaImagePath(item.mediaId, item.mediaType);
+        if (fetchedPath) {
+            return {
+                ...item,
+                poster_path: fetchedPath,
+                thumbnail: fetchedPath
+            };
+        }
+    }
+
+    return item;
+}
+
+async function enrichNotificationsThumbnails(list) {
+    return Promise.all(list.map((item) => enrichNotificationItem(item)));
+}
+
+function buildNotificationThumbHtml(item) {
+    const imagePath = getNotificationImagePath(item);
+    const thumbUrl = getNotificationThumbnailUrl(imagePath);
+
+    return `
+            <span class="notifications-thumb-wrap" style="background-image:url('${thumbUrl}')" aria-hidden="true">
+                <img
+                    class="notifications-thumb"
+                    src="${thumbUrl}"
+                    alt=""
+                    width="64"
+                    height="36"
+                    loading="eager"
+                    decoding="async"
+                    referrerpolicy="no-referrer"
+                    onerror="handleNotificationThumbError(this)"
+                >
+            </span>`;
 }
 
 function createSeedNotifications() {
@@ -436,15 +528,17 @@ function ensureNotificationsSeed() {
     updateNotificationsBadge();
 }
 
-function buildSimulatedNotification() {
+async function buildSimulatedNotification() {
     const template = NOTIFICATION_TEMPLATES[Math.floor(Math.random() * NOTIFICATION_TEMPLATES.length)];
     const name = NOTIFICATION_SHOW_NAMES[Math.floor(Math.random() * NOTIFICATION_SHOW_NAMES.length)];
+    const fetchedPath = await fetchNotificationMediaImagePath(template.mediaId, template.mediaType);
 
     return {
         id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         title: template.title,
         description: template.description.replace('{name}', name),
-        thumbnail: template.backdrop,
+        thumbnail: fetchedPath || template.backdrop,
+        poster_path: fetchedPath || undefined,
         createdAt: Date.now(),
         read: false,
         mediaId: template.mediaId,
@@ -462,9 +556,11 @@ async function fetchNotifications({ allowNew = true } = {}) {
     await new Promise((resolve) => setTimeout(resolve, 120));
 
     if (allowNew && Math.random() < 0.4) {
-        notifications.unshift(buildSimulatedNotification());
+        notifications.unshift(await buildSimulatedNotification());
         notifications = notifications.slice(0, NOTIFICATIONS_MAX);
     }
+
+    notifications = await enrichNotificationsThumbnails(notifications);
 
     renderNotificationsPanel();
     updateNotificationsBadge();
@@ -516,21 +612,16 @@ function renderNotificationsPanel() {
     }
 
     empty.classList.add('hidden');
-    list.innerHTML = notifications.map((item) => {
-        const thumbUrl = getNotificationThumbnailUrl(item.thumbnail);
-        return `
+    list.innerHTML = notifications.map((item) => `
         <button type="button" class="notifications-item${item.read ? '' : ' unread'}" data-notification-id="${escapeHtml(item.id)}" data-media-id="${item.mediaId || ''}" data-media-type="${item.mediaType || ''}">
-            <span class="notifications-thumb-wrap" aria-hidden="true">
-                <img class="notifications-thumb" src="${thumbUrl}" alt="" width="64" height="36" loading="lazy" decoding="async">
-            </span>
+            ${buildNotificationThumbHtml(item)}
             <div class="notifications-body">
                 <p class="notifications-item-title">${escapeHtml(item.title)}</p>
                 <p class="notifications-item-desc">${escapeHtml(item.description)}</p>
                 <span class="notifications-item-time">${escapeHtml(formatNotificationTimeAgo(item.createdAt))}</span>
             </div>
         </button>
-    `;
-    }).join('');
+    `).join('');
 }
 
 function markAllNotificationsRead() {
@@ -599,8 +690,12 @@ function startNotificationsPolling() {
     if (!currentUser) return;
 
     ensureNotificationsSeed();
-    renderNotificationsPanel();
-    updateNotificationsBadge();
+
+    void (async () => {
+        notifications = await enrichNotificationsThumbnails(notifications);
+        renderNotificationsPanel();
+        updateNotificationsBadge();
+    })();
 
     if (notificationsPollInterval) return;
 
@@ -1461,8 +1556,33 @@ function mapProfileFromDb(row) {
         id: row.id,
         user_id: row.user_id,
         name: row.nombre,
-        avatar: row.avatar || AVATAR_PRESETS[0].url
+        avatar: row.avatar || AVATAR_PRESETS[0].url,
+        is_kids: Boolean(row.is_kids)
     };
+}
+
+function isKidsProfile() {
+    return Boolean(currentProfile?.is_kids);
+}
+
+function getKidsMovieParams() {
+    return `${KIDS_MOVIE_CERT}&with_genres=10751,16`;
+}
+
+function getKidsTvParams() {
+    return `${KIDS_TV_CERT}&with_genres=10751,16`;
+}
+
+function applyKidsModeUI() {
+    const kids = isKidsProfile();
+
+    elements.logoHome?.classList.toggle('kids-mode', kids);
+    elements.netflixKidsLabel?.classList.toggle('hidden', !kids);
+    elements.genreFilters?.classList.toggle('kids-mode', kids);
+
+    if (kids && elements.genreFilters?.querySelector('.genre-btn.active[data-kids-hide="true"]')) {
+        resetGenreButtons();
+    }
 }
 
 async function loadUserProfiles() {
@@ -1475,7 +1595,7 @@ async function loadUserProfiles() {
 
     const { data, error } = await supabaseClient
         .from('perfiles')
-        .select('id, user_id, nombre, avatar, created_at')
+        .select('id, user_id, nombre, avatar, is_kids, created_at')
         .eq('user_id', currentUser.id)
         .order('created_at', { ascending: true });
 
@@ -1538,7 +1658,11 @@ function getActiveProfile() {
 function setActiveProfile(profile) {
     if (!profile?.id) return;
 
-    const payload = JSON.stringify(profile);
+    currentProfile = {
+        ...profile,
+        is_kids: Boolean(profile.is_kids)
+    };
+    const payload = JSON.stringify(currentProfile);
     sessionStorage.setItem(PROFILE_SESSION_KEY, payload);
 
     const userId = profile.user_id || currentUser?.id;
@@ -1547,13 +1671,16 @@ function setActiveProfile(profile) {
     }
 
     updateNavbarProfileAvatar(profile);
+    applyKidsModeUI();
 }
 
 function clearActiveProfile(userId = currentUser?.id) {
+    currentProfile = null;
     sessionStorage.removeItem(PROFILE_SESSION_KEY);
     if (userId) {
         localStorage.removeItem(getProfileLocalStorageKey(userId));
     }
+    applyKidsModeUI();
 }
 
 function isProfileGateVisible() {
@@ -1740,6 +1867,9 @@ function openProfileEditor(profileId) {
 
     elements.profileEditorTitle.textContent = isEdit ? 'Editar perfil' : 'Añadir perfil';
     elements.profileEditorName.value = profile?.name || '';
+    if (elements.profileEditorIsKids) {
+        elements.profileEditorIsKids.checked = Boolean(profile?.is_kids);
+    }
     selectedAvatarUrl = profile?.avatar || AVATAR_PRESETS[0].url;
 
     if (elements.profileEditorAvatarPreview) {
@@ -1783,6 +1913,7 @@ async function handleProfileFormSubmitAsync() {
     }
 
     const name = elements.profileEditorName?.value.trim();
+    const isKids = Boolean(elements.profileEditorIsKids?.checked);
     if (!name) {
         showProfileEditorError('Introduce un nombre para el perfil.');
         return;
@@ -1811,10 +1942,10 @@ async function handleProfileFormSubmitAsync() {
 
             const { data, error } = await supabaseClient
                 .from('perfiles')
-                .update({ nombre: name, avatar: selectedAvatarUrl })
+                .update({ nombre: name, avatar: selectedAvatarUrl, is_kids: isKids })
                 .eq('id', editingProfileId)
                 .eq('user_id', currentUser.id)
-                .select('id, user_id, nombre, avatar, created_at')
+                .select('id, user_id, nombre, avatar, is_kids, created_at')
                 .single();
 
             if (error) throw error;
@@ -1825,6 +1956,9 @@ async function handleProfileFormSubmitAsync() {
             const updated = mapProfileFromDb(data);
             if (active?.id === editingProfileId) {
                 setActiveProfile(updated);
+                if (currentView === 'home') {
+                    loadHomeRows();
+                }
             }
         } else {
             if (profiles.length >= MAX_PROFILES) {
@@ -1843,7 +1977,8 @@ async function handleProfileFormSubmitAsync() {
                 .insert({
                     user_id: currentUser.id,
                     nombre: name,
-                    avatar: selectedAvatarUrl
+                    avatar: selectedAvatarUrl,
+                    is_kids: isKids
                 });
 
             if (error) throw error;
@@ -1931,6 +2066,7 @@ function playTaDum() {
 }
 
 function selectProfile(profile, { reloadCatalog = true } = {}) {
+    currentProfile = profile;
     setActiveProfile(profile);
     playTaDum();
 
@@ -2521,17 +2657,29 @@ function switchCategory(view) {
             resetGenreButtons();
             elements.gridTitle.textContent = 'Películas';
             elements.gridTitle.classList.remove('hidden');
-            fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`, 'movie');
+            if (isKidsProfile()) {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc${getKidsMovieParams()}`, 'movie');
+            } else {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`, 'movie');
+            }
             break;
         case 'series':
             elements.gridTitle.textContent = 'Series';
             elements.gridTitle.classList.remove('hidden');
-            fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`, 'tv');
+            if (isKidsProfile()) {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc${getKidsTvParams()}`, 'tv');
+            } else {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`, 'tv');
+            }
             break;
         case 'new':
             elements.gridTitle.textContent = 'Novedades';
             elements.gridTitle.classList.remove('hidden');
-            fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=release_date.desc&primary_release_date.lte=2026-12-31`, 'movie');
+            if (isKidsProfile()) {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=release_date.desc&primary_release_date.lte=2026-12-31${KIDS_MOVIE_CERT}&with_genres=10751,16`, 'movie');
+            } else {
+                fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=release_date.desc&primary_release_date.lte=2026-12-31`, 'movie');
+            }
             break;
         case 'mylist':
             loadMyListView();
@@ -2583,6 +2731,13 @@ function stopAllCardTrailers() {
     document.querySelectorAll('.movie-card.playing-trailer').forEach(deactivateCardTrailer);
 }
 async function loadHomeRows(silent = false) {
+    if (isKidsProfile()) {
+        return loadKidsRows(silent);
+    }
+    return loadAdultRows(silent);
+}
+
+async function loadAdultRows(silent = false) {
     if (!silent) toggleSpinner(true);
     if (!silent) loadedMedia = {};
 
@@ -2628,6 +2783,55 @@ async function loadHomeRows(silent = false) {
         console.error('Error loading home:', e);
         if (!silent) {
             elements.dynamicCatalog.innerHTML = '<p style="color:red; text-align:center;">Error cargando portada.</p>';
+        }
+    }
+}
+
+async function loadKidsRows(silent = false) {
+    if (!silent) toggleSpinner(true);
+    if (!silent) loadedMedia = {};
+
+    try {
+        const [familyMovies, kidsTv, animatedMovies, animatedTv, fantasyMovies, fantasyTv, newKidsMovies] = await Promise.all([
+            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&with_genres=10751&sort_by=popularity.desc${KIDS_MOVIE_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&with_genres=10751&sort_by=popularity.desc${KIDS_TV_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&with_genres=16&sort_by=popularity.desc${KIDS_MOVIE_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&with_genres=16&sort_by=popularity.desc${KIDS_TV_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&with_genres=14&sort_by=popularity.desc${KIDS_MOVIE_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${API_KEY}&language=es-MX&with_genres=14&sort_by=popularity.desc${KIDS_TV_CERT}`).then(r => r.json()),
+            fetch(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=release_date.desc&primary_release_date.lte=2026-12-31${KIDS_MOVIE_CERT}&with_genres=10751,16`).then(r => r.json())
+        ]);
+
+        const heroPool = (familyMovies.results || []).filter(i => i.backdrop_path || i.poster_path);
+
+        if (!silent && heroPool.length > 0) {
+            initHeroCarousel(overrideMediaType(heroPool.slice(0, 5), 'movie'));
+        } else if (!silent) {
+            elements.heroSection.classList.add('hidden');
+        }
+
+        let combinedHtml = '';
+        combinedHtml += generateRowHTML('Películas familiares', overrideMediaType((familyMovies.results || []).slice(0, 18), 'movie'));
+        combinedHtml += generateRowHTML('Series de TV infantiles', overrideMediaType((kidsTv.results || []).slice(0, 18), 'tv'));
+        combinedHtml += generateRowHTML('Títulos animados',
+            [...(animatedMovies.results || []), ...(animatedTv.results || [])].slice(0, 18)
+        );
+        combinedHtml += generateRowHTML('Magia y Fantasía',
+            [...(fantasyMovies.results || []), ...(fantasyTv.results || [])].slice(0, 18)
+        );
+        combinedHtml += generateRowHTML('Novedades para toda la familia', overrideMediaType(
+            (newKidsMovies.results || []).filter(m => m.poster_path).slice(0, 18),
+            'movie'
+        ));
+
+        elements.dynamicCatalog.innerHTML = combinedHtml;
+        updateListButtonStates();
+
+        if (!silent) startHomeAutoRefresh();
+    } catch (e) {
+        console.error('Error loading kids home:', e);
+        if (!silent) {
+            elements.dynamicCatalog.innerHTML = '<p style="color:red; text-align:center;">Error cargando contenido infantil.</p>';
         }
     }
 }
@@ -3368,15 +3572,26 @@ async function handleSearch() {
 }
 
 async function handleGenreFilter(button) {
-    resetGenreButtons();
-    button.classList.add('active');
-    
-    const genreId = button.dataset.id;
-    if (!genreId) {
-        fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`, 'movie');
+    if (isKidsProfile() && button.dataset.kidsHide === 'true') {
         return;
     }
-    fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&with_genres=${genreId}&sort_by=popularity.desc`, 'movie');
+
+    resetGenreButtons();
+    button.classList.add('active');
+
+    const genreId = button.dataset.id;
+
+    if (!genreId) {
+        const base = `${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc`;
+        fetchAndRenderGrid(isKidsProfile() ? `${base}${getKidsMovieParams()}` : base, 'movie');
+        return;
+    }
+
+    const genreParam = isKidsProfile()
+        ? `${KIDS_MOVIE_CERT}&with_genres=${genreId}`
+        : `&with_genres=${genreId}`;
+
+    fetchAndRenderGrid(`${TMDB_BASE_URL}/discover/movie?api_key=${API_KEY}&language=es-MX&sort_by=popularity.desc${genreParam}`, 'movie');
 }
 
 function resetGenreButtons() {

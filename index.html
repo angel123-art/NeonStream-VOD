@@ -12,6 +12,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
     <style id="app-boot-critical">
         html.app-booting { background: #141414; }
@@ -41,7 +42,7 @@
         @keyframes app-boot-spin { to { transform: rotate(360deg); } }
     </style>
     <script>document.documentElement.classList.add('app-booting');</script>
-    <link rel="stylesheet" href="style.css?v=20260731i">
+    <link rel="stylesheet" href="style.css?v=20260731j">
 </head>
 <body>
     <div id="app-boot-loader" role="status" aria-live="polite" aria-label="Cargando Netflix">
@@ -166,6 +167,15 @@
                     </div>
                     <label class="profile-editor-label" for="profile-editor-name">Nombre</label>
                     <input type="text" id="profile-editor-name" class="profile-editor-input" maxlength="20" placeholder="Nombre del perfil" autocomplete="off" required>
+                    <div class="profile-editor-kids-row">
+                        <label class="profile-editor-kids-label" for="profile-editor-is-kids">
+                            <span class="profile-editor-kids-text">¿Perfil para niños?</span>
+                            <span class="profile-toggle">
+                                <input type="checkbox" id="profile-editor-is-kids" class="profile-toggle-input">
+                                <span class="profile-toggle-track" aria-hidden="true"></span>
+                            </span>
+                        </label>
+                    </div>
                     <p class="profile-editor-label">Icono del perfil</p>
                     <div class="profile-avatar-picker" id="profile-avatar-picker"></div>
                     <p class="profile-editor-error hidden" id="profile-editor-error"></p>
@@ -190,6 +200,7 @@
                 <a class="netflix-logo" id="logo-home" href="#" aria-label="Netflix Inicio">
                     <img class="netflix-icon" src="https://upload.wikimedia.org/wikipedia/commons/0/0c/Netflix_2015_N_logo.svg" alt="" width="28" height="28">
                     <img class="netflix-wordmark" src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" width="110" height="30">
+                    <span class="netflix-kids-label hidden" id="netflix-kids-label">Kids</span>
                 </a>
                 <nav class="main-nav" id="main-nav">
                     <button class="nav-link active" data-view="home">Inicio</button>
@@ -271,11 +282,13 @@
             <div class="container-fluid">
                 <div class="genre-filters hidden" id="genre-filters">
                     <button class="genre-btn active" data-id="">Todo</button>
-                    <button class="genre-btn" data-id="28">Acción</button>
+                    <button class="genre-btn" data-id="28" data-kids-hide="true">Acción</button>
                     <button class="genre-btn" data-id="35">Comedia</button>
                     <button class="genre-btn" data-id="18">Drama</button>
-                    <button class="genre-btn" data-id="27">Terror</button>
-                    <button class="genre-btn" data-id="878">Ciencia Ficción</button>
+                    <button class="genre-btn" data-id="27" data-kids-hide="true">Terror</button>
+                    <button class="genre-btn" data-id="878" data-kids-hide="true">Ciencia Ficción</button>
+                    <button class="genre-btn genre-btn--kids" data-id="10751" data-kids-only="true">Familia</button>
+                    <button class="genre-btn genre-btn--kids" data-id="16" data-kids-only="true">Animación</button>
                 </div>
 
                 <h1 id="grid-title" class="section-title hidden">Catálogo</h1>
@@ -402,6 +415,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.1/dist/umd/supabase.min.js"></script>
-    <script src="script.js?v=20260731k"></script>
+    <script src="script.js?v=20260731l"></script>
 </body>
 </html>
