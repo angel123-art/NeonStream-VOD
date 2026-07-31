@@ -41,6 +41,10 @@ body {
     overflow-x: hidden;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* App Boot — splash de carga inicial anti-flicker */
 #app-boot-loader.app-boot-loader--out {
     opacity: 0;
@@ -1464,14 +1468,27 @@ body.landing-gate-active footer {
     aspect-ratio: 2 / 3;
     border-radius: 3px;
     overflow: hidden;
-    background: #1a1a1a;
+    background: linear-gradient(145deg, #2a2a2a 0%, #141414 100%);
 }
 
-.landing-poster-tile img {
+.landing-poster-tile--fallback {
+    background: linear-gradient(145deg, #1f1f1f 0%, #0d0d0d 100%);
+}
+
+.landing-poster-tile img,
+.landing-poster-tile .landing-poster-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
+    background-color: transparent;
+}
+
+.landing-poster-img--fallback {
+    object-fit: contain;
+    padding: 22%;
+    opacity: 0.55;
+    background-color: #1a1a1a;
 }
 
 .landing-hero-bg-vignette {
@@ -2388,6 +2405,10 @@ body.profile-gate-active footer {
     letter-spacing: 0.02em;
     margin-left: 0.15rem;
     line-height: 1;
+}
+
+.netflix-kids-label.hidden {
+    display: none !important;
 }
 
 .netflix-logo.kids-mode .netflix-wordmark {

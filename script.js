@@ -7,7 +7,7 @@
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
-const APP_BUILD = '20260731-audit-logger';
+const APP_BUILD = '20260731-landing-kids-fix';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
@@ -72,6 +72,8 @@ const NOTIFICATIONS_POLL_MS = 45000;
 const NOTIFICATIONS_MAX = 15;
 const NOTIFICATION_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 const NOTIFICATION_FALLBACK_IMAGE = 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png';
+const LANDING_POSTER_IMAGE_BASE = 'https://image.tmdb.org/t/p/w342';
+const LANDING_POSTER_FALLBACK = NOTIFICATION_FALLBACK_IMAGE;
 const AUDIT_LOG_STORAGE_KEY = 'neonstream_audit_logs_v1';
 const AUDIT_LOG_MAX_ENTRIES = 800;
 
@@ -988,24 +990,91 @@ function stopNotificationsPolling() {
 // ============================================
 // Landing Page — Vista pública
 // ============================================
-function buildLandingPosterCollage() {
+function getLandingPosterUrl(path) {
+    return buildTmdbImageUrl(path, LANDING_POSTER_IMAGE_BASE) || LANDING_POSTER_FALLBACK;
+}
+
+function renderLandingPosterTiles(posterPaths, count = 48) {
     if (!elements.landingPosterCollage) return;
 
     const paths = [];
-    while (paths.length < 48) {
-        paths.push(...LANDING_POSTER_PATHS);
+    while (paths.length < count && posterPaths.length > 0) {
+        paths.push(...posterPaths);
     }
 
-    elements.landingPosterCollage.innerHTML = paths.slice(0, 48).map((path) => (
-        `<div class="landing-poster-tile"><img src="${IMAGE_BASE_URL}${path}" alt="" loading="lazy" decoding="async"></div>`
-    )).join('');
+    elements.landingPosterCollage.innerHTML = paths.slice(0, count).map((path) => {
+        const url = getLandingPosterUrl(path);
+        return `
+        <div class="landing-poster-tile">
+            <img
+                class="landing-poster-img"
+                src="${url}"
+                alt=""
+                loading="lazy"
+                decoding="async"
+                referrerpolicy="no-referrer"
+                onerror="handleLandingPosterError(this)"
+            >
+        </div>`;
+    }).join('');
+}
+
+function handleLandingPosterError(img) {
+    if (!img || img.dataset.fallbackApplied === 'true') return;
+
+    img.dataset.fallbackApplied = 'true';
+    img.onerror = null;
+    img.src = LANDING_POSTER_FALLBACK;
+    img.classList.add('landing-poster-img--fallback');
+
+    const tile = img.closest('.landing-poster-tile');
+    tile?.classList.add('landing-poster-tile--fallback');
+
+    AuditLogger.warn('UI', 'Fallo de carga de póster en landing', {
+        attemptedUrl: img.getAttribute('data-original-src') || img.src,
+        fallback: LANDING_POSTER_FALLBACK
+    });
+}
+
+window.handleLandingPosterError = handleLandingPosterError;
+
+async function buildLandingPosterCollage() {
+    if (!elements.landingPosterCollage) return;
+
+    renderLandingPosterTiles(LANDING_POSTER_PATHS);
+
+    try {
+        const response = await fetch(
+            `${TMDB_BASE_URL}/trending/movie/week?api_key=${API_KEY}&language=es-MX`
+        );
+
+        if (!response.ok) {
+            AuditLogger.warn('TMDB', 'Landing: trending no disponible', {
+                status: response.status
+            });
+            return;
+        }
+
+        const data = await response.json();
+        const livePaths = (data.results || [])
+            .map((item) => item.poster_path)
+            .filter(Boolean);
+
+        if (livePaths.length >= 12) {
+            renderLandingPosterTiles(livePaths);
+        }
+    } catch (err) {
+        AuditLogger.warn('TMDB', 'Landing: no se pudieron obtener pósters dinámicos', {
+            message: err?.message
+        });
+    }
 }
 
 function setupLandingGate() {
     if (landingGateInitialized) return;
     landingGateInitialized = true;
 
-    buildLandingPosterCollage();
+    void buildLandingPosterCollage();
 
     elements.landingSigninBtn?.addEventListener('click', () => {
         openAuthFromLanding('login');
@@ -1024,6 +1093,7 @@ function showLandingGate() {
     elements.landingGate?.classList.remove('hidden');
     elements.authGate?.classList.add('hidden');
     elements.profileGate?.classList.add('hidden');
+    void buildLandingPosterCollage();
 }
 
 function hideLandingGate() {
@@ -1885,17 +1955,34 @@ async function handleSignOut() {
 // Profile Gate — CRUD con Supabase (tabla perfiles)
 // ============================================
 function mapProfileFromDb(row) {
-    return {
+    return normalizeProfile({
         id: row.id,
         user_id: row.user_id,
         name: row.nombre,
         avatar: row.avatar || AVATAR_PRESETS[0].url,
-        is_kids: Boolean(row.is_kids)
+        is_kids: row.is_kids
+    });
+}
+
+function normalizeIsKids(value) {
+    if (value === true || value === 1) return true;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        return normalized === 'true' || normalized === '1';
+    }
+    return false;
+}
+
+function normalizeProfile(profile) {
+    if (!profile?.id) return null;
+    return {
+        ...profile,
+        is_kids: normalizeIsKids(profile.is_kids)
     };
 }
 
 function isKidsProfile() {
-    return Boolean(currentProfile?.is_kids);
+    return currentProfile?.is_kids === true;
 }
 
 function getKidsMovieParams() {
@@ -1907,11 +1994,15 @@ function getKidsTvParams() {
 }
 
 function applyKidsModeUI() {
-    const kids = isKidsProfile();
+    const kids = currentProfile?.is_kids === true;
 
     elements.logoHome?.classList.toggle('kids-mode', kids);
     elements.netflixKidsLabel?.classList.toggle('hidden', !kids);
     elements.genreFilters?.classList.toggle('kids-mode', kids);
+
+    if (!kids && elements.genreFilters?.classList.contains('kids-mode')) {
+        elements.genreFilters.classList.remove('kids-mode');
+    }
 
     if (kids && elements.genreFilters?.querySelector('.genre-btn.active[data-kids-hide="true"]')) {
         resetGenreButtons();
@@ -1955,7 +2046,7 @@ function parseStoredProfile(raw) {
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw);
-        if (parsed?.id && parsed?.name) return parsed;
+        if (parsed?.id && parsed?.name) return normalizeProfile(parsed);
     } catch {
         /* perfil corrupto */
     }
@@ -1971,7 +2062,7 @@ function getActiveProfile() {
             sessionStorage.removeItem(PROFILE_SESSION_KEY);
         } else {
             const match = userProfiles.find(p => p.id === fromSession.id);
-            return match || fromSession;
+            return normalizeProfile(match || fromSession);
         }
     }
 
@@ -1979,7 +2070,7 @@ function getActiveProfile() {
         const fromLocal = parseStoredProfile(localStorage.getItem(getProfileLocalStorageKey(userId)));
         if (fromLocal && (!fromLocal.user_id || fromLocal.user_id === userId)) {
             const match = userProfiles.find(p => p.id === fromLocal.id);
-            const profile = match || fromLocal;
+            const profile = normalizeProfile(match || fromLocal);
             sessionStorage.setItem(PROFILE_SESSION_KEY, JSON.stringify(profile));
             return profile;
         }
@@ -1991,10 +2082,8 @@ function getActiveProfile() {
 function setActiveProfile(profile) {
     if (!profile?.id) return;
 
-    currentProfile = {
-        ...profile,
-        is_kids: Boolean(profile.is_kids)
-    };
+    const fresh = userProfiles.find(p => p.id === profile.id);
+    currentProfile = normalizeProfile(fresh ? { ...fresh, ...profile } : profile);
     const payload = JSON.stringify(currentProfile);
     sessionStorage.setItem(PROFILE_SESSION_KEY, payload);
 
@@ -2408,8 +2497,6 @@ function playTaDum() {
 }
 
 function selectProfile(profile, { reloadCatalog = true } = {}) {
-    currentProfile = profile;
-
     AuditLogger.success('AUTH', 'Perfil seleccionado', {
         profile: AuditLogger.sanitizeProfile(profile)
     });
@@ -2431,6 +2518,7 @@ function selectProfile(profile, { reloadCatalog = true } = {}) {
 function revealApp() {
     hideLandingGate();
     document.body.classList.remove('profile-gate-active', 'landing-gate-active', 'auth-gate-active');
+    applyKidsModeUI();
     startNotificationsPolling();
 }
 
