@@ -135,6 +135,10 @@ const elements = {
     authToggleBtn: document.getElementById('auth-toggle-btn'),
     authGateTitle: document.getElementById('auth-gate-title'),
     authHint: document.getElementById('auth-hint'),
+    authPasskeySection: document.getElementById('auth-passkey-section'),
+    authPasskeySigninBtn: document.getElementById('auth-passkey-signin-btn'),
+    authPasskeyRegisterBtn: document.getElementById('auth-passkey-register-btn'),
+    authPasskeyHint: document.getElementById('auth-passkey-hint'),
     catalogSection: document.getElementById('catalog-section'),
     playerSection: document.getElementById('player-section'),
     heroSection: document.getElementById('hero-section'),
@@ -831,14 +835,16 @@ function initSupabaseClient() {
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: true,
-            flowType: 'pkce'
+            flowType: 'pkce',
+            experimental: { passkey: true }
         }
     });
 
     console.info('[Supabase] Cliente inicializado', {
         url: projectUrl,
         keyType: getSupabaseKeyType(),
-        redirectTo: getAuthRedirectUrl()
+        redirectTo: getAuthRedirectUrl(),
+        passkeyEnabled: true
     });
     return client;
 }
@@ -853,6 +859,183 @@ function setupAuthGate() {
     elements.authForgotBackBtn?.addEventListener('click', returnToLoginFromForgot);
     elements.authBackBtn?.addEventListener('click', returnToLandingFromAuth);
     elements.authBackLink?.addEventListener('click', returnToLandingFromAuth);
+    elements.authPasskeySigninBtn?.addEventListener('click', handlePasskeySignIn);
+    elements.authPasskeyRegisterBtn?.addEventListener('click', handleRegisterWithPasskey);
+}
+
+function isPasskeySupported() {
+    return window.isSecureContext
+        && typeof window.PublicKeyCredential !== 'undefined'
+        && typeof navigator?.credentials?.create === 'function'
+        && typeof navigator?.credentials?.get === 'function';
+}
+
+function isPasskeyAvailable() {
+    return Boolean(
+        supabaseClient?.auth?.signInWithPasskey
+        && supabaseClient?.auth?.registerPasskey
+        && isPasskeySupported()
+    );
+}
+
+function setPasskeyLoading(loading) {
+    if (elements.authPasskeySigninBtn) {
+        elements.authPasskeySigninBtn.disabled = loading;
+    }
+    if (elements.authPasskeyRegisterBtn) {
+        elements.authPasskeyRegisterBtn.disabled = loading;
+    }
+}
+
+function getPasskeyErrorMessage(err) {
+    const msg = err?.message || String(err);
+    const code = err?.code || '';
+
+    if (err?.name === 'NotAllowedError' || /not allowed|cancel/i.test(msg)) {
+        return 'Operación cancelada. Puedes intentarlo de nuevo cuando quieras.';
+    }
+    if (/passkey_disabled/i.test(code) || /passkey_disabled/i.test(msg)) {
+        return 'Las llaves de acceso no están habilitadas en Supabase para este dominio.';
+    }
+    if (/webauthn_credential_not_found/i.test(code) || /webauthn_credential_not_found/i.test(msg)) {
+        return 'No hay una llave de acceso registrada. Crea tu cuenta y regístrala primero.';
+    }
+    if (/webauthn_credential_exists/i.test(code) || /webauthn_credential_exists/i.test(msg)) {
+        return 'Esta llave de acceso ya está registrada en tu cuenta.';
+    }
+    if (/too_many_passkeys/i.test(code) || /too_many_passkeys/i.test(msg)) {
+        return 'Has alcanzado el límite de llaves de acceso permitidas.';
+    }
+    if (/webauthn_verification_failed/i.test(code) || /webauthn_verification_failed/i.test(msg)) {
+        return 'No se pudo verificar la llave de acceso. Inténtalo de nuevo.';
+    }
+
+    return getAuthErrorMessage(err, 'passkey');
+}
+
+async function handlePasskeySignIn() {
+    hideAuthMessages();
+
+    if (!supabaseClient) {
+        showAuthError('Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY.');
+        return;
+    }
+    if (!isPasskeyAvailable()) {
+        showAuthError('Tu navegador o este entorno no admite llaves de acceso. Usa HTTPS y un navegador compatible.');
+        return;
+    }
+
+    setPasskeyLoading(true);
+
+    try {
+        console.info('[Supabase Auth] signInWithPasskey →', { origin: window.location.origin });
+
+        const { data, error } = await supabaseClient.auth.signInWithPasskey();
+
+        if (error) {
+            logSupabaseError('signInWithPasskey', error);
+            throw error;
+        }
+
+        console.info('[Supabase Auth] signInWithPasskey OK', { userId: data.user?.id });
+        showAuthSuccess('Sesión iniciada con llave de acceso.');
+    } catch (err) {
+        showAuthError(getPasskeyErrorMessage(err));
+    } finally {
+        setPasskeyLoading(false);
+    }
+}
+
+async function handleRegisterWithPasskey() {
+    hideAuthMessages();
+
+    if (!supabaseClient) {
+        showAuthError('Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY.');
+        return;
+    }
+    if (!isPasskeyAvailable()) {
+        showAuthError('Tu navegador o este entorno no admite llaves de acceso. Usa HTTPS y un navegador compatible.');
+        return;
+    }
+
+    const email = normalizeAuthEmail(elements.authEmail?.value || '');
+    const password = elements.authPassword?.value || '';
+
+    if (!email) {
+        showAuthError('Introduce tu correo electrónico para crear la cuenta.');
+        elements.authEmail?.focus();
+        return;
+    }
+    if (!email.includes('@')) {
+        showAuthError('Introduce un correo electrónico válido.');
+        return;
+    }
+    if (password.length < 6) {
+        showAuthError('La contraseña debe tener al menos 6 caracteres para registrar tu cuenta.');
+        elements.authPassword?.focus();
+        return;
+    }
+
+    setPasskeyLoading(true);
+
+    try {
+        const redirectTo = getAuthRedirectUrl();
+        console.info('[Supabase Auth] signUp + registerPasskey →', { email, redirectTo });
+
+        const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: redirectTo }
+        });
+
+        if (error) {
+            logSupabaseError('signUp (passkey flow)', error, { email });
+            throw error;
+        }
+
+        if (!data.session) {
+            showAuthSuccess('Confirma tu correo electrónico. Después podrás registrar una llave de acceso al iniciar sesión.');
+            authMode = 'login';
+            updateAuthUI();
+            return;
+        }
+
+        const { data: passkeyData, error: passkeyError } = await supabaseClient.auth.registerPasskey();
+
+        if (passkeyError) {
+            logSupabaseError('registerPasskey', passkeyError, { email });
+            throw passkeyError;
+        }
+
+        console.info('[Supabase Auth] registerPasskey OK', { passkeyId: passkeyData?.id });
+        showAuthSuccess('¡Cuenta creada y llave de acceso registrada! Cargando tus perfiles...');
+    } catch (err) {
+        showAuthError(getPasskeyErrorMessage(err));
+    } finally {
+        setPasskeyLoading(false);
+    }
+}
+
+function updatePasskeyUI() {
+    const isLogin = authMode === 'login';
+    const isRegister = authMode === 'register';
+    const isForgot = authMode === 'forgot';
+    const available = isPasskeyAvailable();
+
+    if (elements.authPasskeySection) {
+        elements.authPasskeySection.classList.toggle('hidden', isForgot || !available);
+    }
+    if (elements.authPasskeySigninBtn) {
+        elements.authPasskeySigninBtn.classList.toggle('hidden', !isLogin);
+    }
+    if (elements.authPasskeyRegisterBtn) {
+        elements.authPasskeyRegisterBtn.classList.toggle('hidden', !isRegister);
+    }
+    if (elements.authPasskeyHint) {
+        elements.authPasskeyHint.textContent = isRegister
+            ? 'Crea tu cuenta y guarda una llave de acceso en este dispositivo con biometría.'
+            : 'Usa Face ID, Touch ID, Windows Hello o tu gestor de contraseñas.';
+    }
 }
 
 function openForgotPasswordMode() {
@@ -926,6 +1109,8 @@ function updateAuthUI() {
                 ? 'Usa el correo electrónico con el que te registraste.'
                 : 'Al registrarte aceptas nuestros Términos de uso y Política de privacidad.');
     }
+
+    updatePasskeyUI();
 }
 
 function showAuthGate() {
@@ -1127,6 +1312,8 @@ async function initAuth() {
         finishAppBoot();
         return;
     }
+
+    updatePasskeyUI();
 
     const configIssues = validateSupabaseConfig();
     if (configIssues.length) {

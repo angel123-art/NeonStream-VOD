@@ -1746,6 +1746,82 @@ body.auth-gate-active .landing-gate {
     text-decoration: underline;
 }
 
+.auth-passkey-section {
+    margin-bottom: 1rem;
+}
+
+.auth-passkey-section.hidden {
+    display: none;
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.25rem 0 1rem;
+}
+
+.auth-divider-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.auth-divider-text {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: lowercase;
+}
+
+.auth-passkey-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: background var(--transition-speed), border-color var(--transition-speed), transform var(--transition-speed);
+}
+
+.auth-passkey-btn + .auth-passkey-btn {
+    margin-top: 0.65rem;
+}
+
+.auth-passkey-btn.hidden {
+    display: none;
+}
+
+.auth-passkey-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.auth-passkey-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.auth-passkey-icon {
+    flex-shrink: 0;
+}
+
+.auth-passkey-hint {
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    text-align: center;
+}
+
 .auth-error,
 .auth-success {
     font-size: 0.85rem;

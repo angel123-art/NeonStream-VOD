@@ -109,6 +109,24 @@
                 <p class="auth-success hidden" id="auth-success"></p>
                 <button type="submit" class="auth-submit-btn" id="auth-submit-btn">Iniciar sesión</button>
             </form>
+
+            <div class="auth-passkey-section hidden" id="auth-passkey-section">
+                <div class="auth-divider" aria-hidden="true">
+                    <span class="auth-divider-line"></span>
+                    <span class="auth-divider-text">o</span>
+                    <span class="auth-divider-line"></span>
+                </div>
+                <button type="button" class="auth-passkey-btn" id="auth-passkey-signin-btn">
+                    <svg class="auth-passkey-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 11c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/><path d="M16 11V8a4 4 0 0 0-8 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/></svg>
+                    Iniciar sesión con llave de acceso
+                </button>
+                <button type="button" class="auth-passkey-btn auth-passkey-btn--register hidden" id="auth-passkey-register-btn">
+                    <svg class="auth-passkey-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 11c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/><path d="M16 11V8a4 4 0 0 0-8 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/></svg>
+                    Registrarse con llave de acceso
+                </button>
+                <p class="auth-passkey-hint" id="auth-passkey-hint">Usa Face ID, Touch ID, Windows Hello o tu gestor de contraseñas.</p>
+            </div>
+
             <button type="button" class="auth-forgot-back-btn hidden" id="auth-forgot-back-btn">← Volver a iniciar sesión</button>
             <button type="button" class="auth-toggle-btn" id="auth-toggle-btn">¿Primera vez en Netflix? <span>Regístrate ahora</span></button>
             <p class="auth-hint" id="auth-hint">Al registrarte aceptas nuestros Términos de uso y Política de privacidad.</p>
@@ -383,7 +401,7 @@
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.min.js"></script>
-    <script src="script.js?v=20260731j"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.1/dist/umd/supabase.min.js"></script>
+    <script src="script.js?v=20260731k"></script>
 </body>
 </html>
