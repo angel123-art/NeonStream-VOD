@@ -7,7 +7,7 @@
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
-const APP_BUILD = '20260731-profile-persist';
+const APP_BUILD = '20260731-audit-logger';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
@@ -72,6 +72,267 @@ const NOTIFICATIONS_POLL_MS = 45000;
 const NOTIFICATIONS_MAX = 15;
 const NOTIFICATION_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 const NOTIFICATION_FALLBACK_IMAGE = 'https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png';
+const AUDIT_LOG_STORAGE_KEY = 'neonstream_audit_logs_v1';
+const AUDIT_LOG_MAX_ENTRIES = 800;
+
+// ============================================
+// AuditLogger — auditoría centralizada
+// ============================================
+const AuditLogger = {
+    entries: [],
+    _fetchPatched: false,
+    _imageErrorCache: new Set(),
+
+    init() {
+        this.loadFromStorage();
+        this.installFetchInterceptor();
+        this.info('SYSTEM', 'AuditLogger inicializado', {
+            build: APP_BUILD,
+            origin: window.location.origin,
+            userAgent: navigator.userAgent
+        });
+    },
+
+    formatTimestamp(date = new Date()) {
+        const pad = (n, len = 2) => String(n).padStart(len, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
+    },
+
+    log(level, category, message, data = null) {
+        const entry = {
+            timestamp: this.formatTimestamp(),
+            level,
+            category,
+            message
+        };
+
+        if (data != null && typeof data === 'object' && Object.keys(data).length > 0) {
+            entry.data = data;
+        }
+
+        this.entries.push(entry);
+        if (this.entries.length > AUDIT_LOG_MAX_ENTRIES) {
+            this.entries = this.entries.slice(-AUDIT_LOG_MAX_ENTRIES);
+        }
+
+        this.persist();
+
+        const consoleMethod = level === 'ERROR' ? 'error' : level === 'WARN' ? 'warn' : 'info';
+        console[consoleMethod](`[Audit ${level}/${category}]`, message, entry.data || '');
+
+        return entry;
+    },
+
+    info(category, message, data) { return this.log('INFO', category, message, data); },
+    warn(category, message, data) { return this.log('WARN', category, message, data); },
+    error(category, message, data) { return this.log('ERROR', category, message, data); },
+    success(category, message, data) { return this.log('SUCCESS', category, message, data); },
+
+    persist() {
+        try {
+            localStorage.setItem(AUDIT_LOG_STORAGE_KEY, JSON.stringify(this.entries));
+        } catch (err) {
+            console.warn('[AuditLogger] No se pudo persistir en localStorage:', err);
+        }
+    },
+
+    loadFromStorage() {
+        try {
+            const raw = localStorage.getItem(AUDIT_LOG_STORAGE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                this.entries = parsed.slice(-AUDIT_LOG_MAX_ENTRIES);
+            }
+        } catch {
+            this.entries = [];
+        }
+    },
+
+    clear() {
+        this.entries = [];
+        localStorage.removeItem(AUDIT_LOG_STORAGE_KEY);
+        this.info('SYSTEM', 'Registro de auditoría limpiado');
+    },
+
+    sanitizeObject(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        const blocked = new Set([
+            'password', 'token', 'access_token', 'refresh_token', 'secret',
+            'apikey', 'authorization', 'anon_key', 'service_role'
+        ]);
+        const out = Array.isArray(obj) ? [] : {};
+
+        for (const [key, value] of Object.entries(obj)) {
+            if (blocked.has(key.toLowerCase())) continue;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                out[key] = this.sanitizeObject(value);
+            } else {
+                out[key] = value;
+            }
+        }
+
+        return out;
+    },
+
+    sanitizeUser(user) {
+        if (!user) return null;
+        return this.sanitizeObject({
+            id: user.id,
+            email: user.email,
+            created_at: user.created_at,
+            last_sign_in_at: user.last_sign_in_at,
+            email_confirmed_at: user.email_confirmed_at,
+            app_metadata: user.app_metadata,
+            user_metadata: user.user_metadata
+        });
+    },
+
+    sanitizeProfile(profile) {
+        if (!profile) return null;
+        return this.sanitizeObject({
+            id: profile.id,
+            user_id: profile.user_id,
+            name: profile.name,
+            is_kids: Boolean(profile.is_kids),
+            avatar: profile.avatar
+        });
+    },
+
+    sanitizeTmdbUrl(url) {
+        return String(url).replace(/api_key=[^&]+/gi, 'api_key=[REDACTED]');
+    },
+
+    logImageFailure(img, source = 'unknown') {
+        const url = img?.currentSrc || img?.src || '';
+        if (!url || url.startsWith('data:') || url.includes('Netflix-avatar.png')) return;
+        if (this._imageErrorCache.has(url)) return;
+
+        this._imageErrorCache.add(url);
+        setTimeout(() => this._imageErrorCache.delete(url), 60000);
+
+        this.warn('UI', 'Fallo de carga de imagen', this.sanitizeObject({
+            url,
+            source,
+            className: img?.className || '',
+            alt: img?.alt || ''
+        }));
+    },
+
+    installFetchInterceptor() {
+        if (this._fetchPatched || typeof window.fetch !== 'function') return;
+        this._fetchPatched = true;
+
+        const nativeFetch = window.fetch.bind(window);
+
+        window.fetch = async (input, init) => {
+            const url = typeof input === 'string'
+                ? input
+                : (input instanceof Request ? input.url : String(input));
+            const isTmdb = url.includes('api.themoviedb.org');
+            const safeUrl = this.sanitizeTmdbUrl(url);
+
+            try {
+                const response = await nativeFetch(input, init);
+
+                if (isTmdb) {
+                    if (!response.ok) {
+                        this.error('TMDB', `Petición TMDB fallida HTTP ${response.status}`, {
+                            url: safeUrl,
+                            status: response.status,
+                            statusText: response.statusText
+                        });
+                    } else {
+                        try {
+                            const clone = response.clone();
+                            const data = await clone.json();
+                            if (typeof data?.status_code === 'number' && data.status_code >= 400) {
+                                this.error('TMDB', data.status_message || 'Error en respuesta TMDB', {
+                                    url: safeUrl,
+                                    status_code: data.status_code
+                                });
+                            }
+                        } catch {
+                            /* respuesta no JSON */
+                        }
+                    }
+                }
+
+                return response;
+            } catch (err) {
+                if (isTmdb) {
+                    this.error('TMDB', `Error de red en petición TMDB: ${err?.message || err}`, {
+                        url: safeUrl,
+                        errorName: err?.name
+                    });
+                }
+                throw err;
+            }
+        };
+    },
+
+    formatLogFile() {
+        const lines = [
+            '================================================================================',
+            ' NEONSTREAM-VOD — AUDIT LOG',
+            ` Generado: ${this.formatTimestamp()}`,
+            ` Total entradas: ${this.entries.length}`,
+            ` Build: ${APP_BUILD}`,
+            '================================================================================',
+            ''
+        ];
+
+        this.entries.forEach((entry) => {
+            lines.push('--------------------------------------------------------------------------------');
+            lines.push(`[${entry.timestamp}] | LEVEL: ${entry.level} | CATEGORY: ${entry.category}`);
+            lines.push(`Mensaje: ${entry.message}`);
+            if (entry.data !== undefined) {
+                lines.push('Datos JSON:');
+                lines.push(JSON.stringify(entry.data, null, 2));
+            }
+            lines.push('');
+        });
+
+        return `${lines.join('\n')}\n`;
+    },
+
+    downloadLogs() {
+        const content = this.formatLogFile();
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        link.href = URL.createObjectURL(blob);
+        link.download = `neonstream-audit-${stamp}.log`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        this.success('SYSTEM', 'Archivo .log descargado', { entries: this.entries.length });
+    }
+};
+
+window.downloadLogs = () => AuditLogger.downloadLogs();
+window.clearAuditLogs = () => AuditLogger.clear();
+
+function setupAuditLoggerUI() {
+    elements.auditLogBtn?.addEventListener('click', () => AuditLogger.downloadLogs());
+
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+            e.preventDefault();
+            AuditLogger.downloadLogs();
+        }
+    });
+}
+
+function setupGlobalImageErrorLogging() {
+    document.addEventListener('error', (e) => {
+        if (e.target?.tagName !== 'IMG') return;
+        AuditLogger.logImageFailure(e.target, 'global-capture');
+    }, true);
+}
+
+AuditLogger.init();
 
 const NOTIFICATION_TEMPLATES = [
     { title: 'Nueva temporada disponible', description: 'Ya puedes ver todos los episodios de {name}.', backdrop: '/56v2S6BLGUjJIRX2R8ZfcmcZiSy.jpg', mediaId: 66732, mediaType: 'tv' },
@@ -185,6 +446,7 @@ const elements = {
     profileCancelBtn: document.getElementById('profile-cancel-btn'),
     profileSignoutBtn: document.getElementById('profile-signout-btn'),
     profileBtn: document.getElementById('profile-btn'),
+    auditLogBtn: document.getElementById('audit-log-btn'),
     tadumAudio: document.getElementById('tadum-audio'),
     detailAddListBtn: document.getElementById('detail-add-list-btn'),
     serverOptions: document.getElementById('server-options'),
@@ -261,6 +523,8 @@ let bootSessionResolved = false;
 let appBootTimeoutId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    setupAuditLoggerUI();
+    setupGlobalImageErrorLogging();
     startAppBoot();
     setupEventListeners();
     setupNavbarScroll();
@@ -408,6 +672,8 @@ function getNotificationThumbnailUrl(pathOrUrl) {
 
 function handleNotificationThumbError(img) {
     if (!img?.classList?.contains('notifications-thumb')) return;
+
+    AuditLogger.logImageFailure(img, 'notification-thumb');
 
     img.onerror = null;
     img.src = NOTIFICATION_FALLBACK_IMAGE;
@@ -838,6 +1104,17 @@ function logSupabaseError(context, err, extra = {}) {
     if (Object.keys(extra).length) console.error('Contexto extra:', extra);
     console.error('Objeto completo:', err);
     console.groupEnd();
+
+    AuditLogger.error('AUTH', `Error Supabase: ${context}`, AuditLogger.sanitizeObject({
+        message: err?.message || String(err),
+        name: err?.name,
+        code: err?.code,
+        status: err?.status,
+        details: err?.details,
+        hint: err?.hint,
+        context,
+        extra
+    }));
 }
 
 async function testSupabaseConnection() {
@@ -1032,9 +1309,18 @@ async function handlePasskeySignIn() {
             throw error;
         }
 
+        AuditLogger.success('AUTH', 'Inicio de sesión con Passkey (WebAuthn) exitoso', {
+            user: AuditLogger.sanitizeUser(data.user),
+            method: 'signInWithPasskey'
+        });
+
         console.info('[Supabase Auth] signInWithPasskey OK', { userId: data.user?.id });
         showAuthSuccess('Sesión iniciada con llave de acceso.');
     } catch (err) {
+        AuditLogger.error('AUTH', 'Fallo en inicio de sesión con Passkey', AuditLogger.sanitizeObject({
+            message: err?.message,
+            method: 'signInWithPasskey'
+        }));
         showAuthError(getPasskeyErrorMessage(err));
     } finally {
         setPasskeyLoading(false);
@@ -1088,6 +1374,13 @@ async function handleRegisterWithPasskey() {
             throw error;
         }
 
+        AuditLogger.success('AUTH', 'Registro de cuenta (flujo Passkey) iniciado', {
+            user: AuditLogger.sanitizeUser(data.user),
+            email,
+            hasSession: Boolean(data.session),
+            method: 'signUp+passkey'
+        });
+
         if (!data.session) {
             showAuthSuccess('Confirma tu correo electrónico. Después podrás registrar una llave de acceso al iniciar sesión.');
             authMode = 'login';
@@ -1102,9 +1395,21 @@ async function handleRegisterWithPasskey() {
             throw passkeyError;
         }
 
+        AuditLogger.success('AUTH', 'Passkey (WebAuthn) registrada correctamente', AuditLogger.sanitizeObject({
+            email,
+            passkeyId: passkeyData?.id,
+            user: AuditLogger.sanitizeUser(data.user),
+            method: 'registerPasskey'
+        }));
+
         console.info('[Supabase Auth] registerPasskey OK', { passkeyId: passkeyData?.id });
         showAuthSuccess('¡Cuenta creada y llave de acceso registrada! Cargando tus perfiles...');
     } catch (err) {
+        AuditLogger.error('AUTH', 'Fallo en registro con Passkey', AuditLogger.sanitizeObject({
+            email,
+            message: err?.message,
+            method: 'signUp+registerPasskey'
+        }));
         showAuthError(getPasskeyErrorMessage(err));
     } finally {
         setPasskeyLoading(false);
@@ -1330,6 +1635,13 @@ async function handleAuthSubmit(e) {
                 throw error;
             }
 
+            AuditLogger.success('AUTH', 'Usuario registrado con correo y contraseña', {
+                user: AuditLogger.sanitizeUser(data.user),
+                email,
+                hasSession: Boolean(data.session),
+                method: 'signUp'
+            });
+
             console.info('[Supabase Auth] signUp OK', { hasSession: Boolean(data.session), userId: data.user?.id });
 
             if (data.session) {
@@ -1353,6 +1665,12 @@ async function handleAuthSubmit(e) {
                 logSupabaseError('signInWithPassword', error, { email });
                 throw error;
             }
+
+            AuditLogger.success('AUTH', 'Inicio de sesión con contraseña exitoso', {
+                user: AuditLogger.sanitizeUser(data.user),
+                email,
+                method: 'signInWithPassword'
+            });
 
             console.info('[Supabase Auth] signIn OK', { userId: data.user?.id });
         }
@@ -1421,6 +1739,12 @@ async function initAuth() {
     supabaseClient.auth.onAuthStateChange((event, session) => {
         console.info('[Supabase Auth] onAuthStateChange', { event, hasSession: Boolean(session) });
 
+        AuditLogger.info('AUTH', `Evento Supabase Auth: ${event}`, AuditLogger.sanitizeObject({
+            event,
+            hasSession: Boolean(session),
+            user: AuditLogger.sanitizeUser(session?.user)
+        }));
+
         if (event === 'INITIAL_SESSION') {
             if (!bootSessionResolved) {
                 void resolveBootSession(session);
@@ -1460,6 +1784,11 @@ async function initAuth() {
 
 async function onUserAuthenticated(user, { fromInitialSession = false } = {}) {
     currentUser = user;
+    AuditLogger.success('AUTH', 'Usuario autenticado en la aplicación', {
+        user: AuditLogger.sanitizeUser(user),
+        fromInitialSession
+    });
+
     cleanAuthCallbackFromUrl();
     hideLandingGate();
     hideAuthGate();
@@ -1498,6 +1827,10 @@ async function onUserAuthenticated(user, { fromInitialSession = false } = {}) {
 }
 
 function onUserSignedOut() {
+    AuditLogger.info('AUTH', 'Sesión cerrada', {
+        userId: currentUser?.id || null
+    });
+
     clearActiveProfile(currentUser?.id);
     currentUser = null;
     userProfiles = [];
@@ -1960,6 +2293,10 @@ async function handleProfileFormSubmitAsync() {
                     loadHomeRows();
                 }
             }
+
+            AuditLogger.success('AUTH', 'Perfil actualizado', {
+                profile: AuditLogger.sanitizeProfile(updated)
+            });
         } else {
             if (profiles.length >= MAX_PROFILES) {
                 showProfileEditorError(`Máximo ${MAX_PROFILES} perfiles permitidos.`);
@@ -1984,6 +2321,11 @@ async function handleProfileFormSubmitAsync() {
             if (error) throw error;
 
             await loadUserProfiles();
+
+            const created = getProfiles().find(p => p.name.toLowerCase() === name.toLowerCase());
+            AuditLogger.success('AUTH', 'Perfil creado', {
+                profile: AuditLogger.sanitizeProfile(created)
+            });
         }
 
         closeProfileEditor();
@@ -2067,6 +2409,11 @@ function playTaDum() {
 
 function selectProfile(profile, { reloadCatalog = true } = {}) {
     currentProfile = profile;
+
+    AuditLogger.success('AUTH', 'Perfil seleccionado', {
+        profile: AuditLogger.sanitizeProfile(profile)
+    });
+
     setActiveProfile(profile);
     playTaDum();
 
@@ -2876,6 +3223,10 @@ async function fetchAndRenderGrid(url, forcedMediaType, page = 1) {
         }
 
     } catch (e) {
+        AuditLogger.error('TMDB', 'Error al renderizar grid del catálogo', AuditLogger.sanitizeObject({
+            message: e?.message,
+            url: AuditLogger.sanitizeTmdbUrl(finalUrl)
+        }));
         elements.dynamicCatalog.innerHTML = '<p style="color:red;">Error en catálogo.</p>';
         if(elements.paginationContainer) elements.paginationContainer.classList.add('hidden');
     }
