@@ -3,69 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Catálogo y streaming de series y películas estilo Netflix con interacción en tiempo real.">
-    <title>NeonStream | Series y Películas</title>
-    
-    <!-- Favicon de NeonStream -->
-    <link rel="icon" type="img/jpeg" href="img/favicon.jpg">
+    <meta name="description" content="Netflix — Series, películas y documentales en streaming. Acceso directo al catálogo.">
+    <title>Netflix</title>
 
-    <!-- Google Fonts: Outfit -->
+    <link rel="icon" href="https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2023.ico">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <!-- Navbar Navigation: Netflix Style -->
-    <header class="navbar">
+<body class="profile-gate-active">
+    <!-- Pantalla de perfiles — ¿Quién está viendo? -->
+    <div id="profile-gate" class="profile-gate" role="dialog" aria-modal="true" aria-labelledby="profile-gate-title">
+        <!-- Vista: selección de perfil -->
+        <div id="profile-select-view" class="profile-gate-view">
+            <div class="profile-gate-inner">
+                <h1 id="profile-gate-title" class="profile-gate-title">¿Quién está viendo ahora?</h1>
+                <div class="profile-grid" id="profile-grid"></div>
+                <button type="button" class="profile-manage-btn" id="profile-manage-btn">Administrar perfiles</button>
+            </div>
+        </div>
+
+        <!-- Vista: administrar perfiles -->
+        <div id="profile-manage-view" class="profile-gate-view hidden">
+            <div class="profile-gate-inner">
+                <h1 class="profile-gate-title">Administrar perfiles</h1>
+                <div class="profile-grid profile-manage-grid" id="profile-manage-grid"></div>
+                <div class="profile-manage-actions">
+                    <button type="button" class="profile-done-btn" id="profile-done-btn">Listo</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor: crear / editar perfil -->
+        <div id="profile-editor" class="profile-editor hidden" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title">
+            <div class="profile-editor-inner">
+                <h2 id="profile-editor-title" class="profile-editor-title">Editar perfil</h2>
+                <form id="profile-editor-form" class="profile-editor-form" novalidate>
+                    <div class="profile-editor-preview">
+                        <img id="profile-editor-avatar-preview" src="" alt="" width="132" height="132">
+                    </div>
+                    <label class="profile-editor-label" for="profile-editor-name">Nombre</label>
+                    <input type="text" id="profile-editor-name" class="profile-editor-input" maxlength="20" placeholder="Nombre del perfil" autocomplete="off" required>
+                    <p class="profile-editor-label">Icono del perfil</p>
+                    <div class="profile-avatar-picker" id="profile-avatar-picker"></div>
+                    <p class="profile-editor-error hidden" id="profile-editor-error"></p>
+                    <div class="profile-editor-actions">
+                        <button type="submit" class="profile-save-btn" id="profile-save-btn">Guardar</button>
+                        <button type="button" class="profile-cancel-btn" id="profile-cancel-btn">Cancelar</button>
+                        <button type="button" class="profile-delete-btn hidden" id="profile-delete-btn">Eliminar perfil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <audio id="tadum-audio" preload="auto" src="https://assets.nflxext.com/us/ffe/siteui/common/media/netflix-intro-v2.mp3"></audio>
+    </div>
+
+    <!-- Navbar — transparente sobre hero, negra al scroll -->
+    <header class="navbar" id="navbar">
         <div class="nav-container">
             <div class="nav-left">
-                <div class="logo" id="logo-home">
-                    <span class="neon-text">Neon</span>Stream
-                </div>
-                <!-- Main Navbar Links -->
+                <a class="netflix-logo" id="logo-home" href="#" aria-label="Netflix Inicio">
+                    <img class="netflix-icon" src="https://upload.wikimedia.org/wikipedia/commons/0/0c/Netflix_2015_N_logo.svg" alt="" width="28" height="28">
+                    <img class="netflix-wordmark" src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" width="110" height="30">
+                </a>
                 <nav class="main-nav" id="main-nav">
                     <button class="nav-link active" data-view="home">Inicio</button>
-                    <button class="nav-link" data-view="movies">Películas</button>
                     <button class="nav-link" data-view="series">Series</button>
-                    <button class="nav-link" data-view="anime">Anime</button>
-                    <button class="nav-link" data-view="kdrama">K-Drama</button>
+                    <button class="nav-link" data-view="movies">Películas</button>
+                    <button class="nav-link" data-view="new">Novedades</button>
+                    <button class="nav-link" data-view="mylist">Mi Lista</button>
                 </nav>
             </div>
-            
-            <div class="search-container">
-                <input type="text" id="search-input" placeholder="Buscar título...">
-                <button id="search-btn" aria-label="Buscar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+
+            <div class="nav-right">
+                <div class="search-wrapper" id="search-wrapper">
+                    <button class="nav-icon-btn" id="search-toggle" aria-label="Buscar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+                    <div class="search-expand" id="search-expand">
+                        <input type="text" id="search-input" placeholder="Títulos, personas, géneros" autocomplete="off">
+                        <button id="search-btn" class="search-submit" aria-label="Buscar">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <button class="nav-icon-btn" id="notifications-btn" aria-label="Notificaciones">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 </button>
+                <div class="profile-menu" id="profile-menu">
+                    <button class="profile-avatar" id="profile-btn" aria-label="Perfil">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png" alt="Perfil" width="32" height="32">
+                    </button>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Area -->
     <main id="main-content">
-        <!-- Hero Banner Netflix Style -->
+        <!-- Hero Banner -->
         <section id="hero-section" class="hero hidden">
-            <!-- Interfaz de Banner Integrada Estática para Fade -->
+            <div class="hero-video-wrap" id="hero-video-wrap">
+                <div id="hero-video-player" class="hero-video"></div>
+            </div>
+            <div class="hero-vignette"></div>
             <div class="container-fluid hero-content">
-                <h1 class="hero-title" id="hero-title">Título</h1>
+                <div class="hero-logo-wrap" id="hero-logo-wrap">
+                    <img class="hero-logo hidden" id="hero-logo" alt="">
+                    <h1 class="hero-title" id="hero-title">Título</h1>
+                </div>
                 <p class="hero-overview" id="hero-overview">Sinopsis</p>
-                <div class="hero-buttons">
-                    <button class="hero-btn" id="hero-play-btn" data-id="">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                        Ver Ahora
-                    </button>
-                    <button class="hero-btn secondary" id="hero-trailer-btn" data-id="">
-                        🎬 Ver Tráiler
+                <div class="hero-bottom-actions">
+                    <div class="hero-buttons">
+                        <button class="hero-btn" id="hero-play-btn" data-id="">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            Reproducir
+                        </button>
+                        <button class="hero-btn secondary" id="hero-info-btn" data-id="">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            Más información
+                        </button>
+                    </div>
+                    <button class="hero-volume-btn" id="hero-volume-btn" type="button" aria-label="Activar sonido" aria-pressed="false">
+                        <svg class="icon-muted" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                        <svg class="icon-unmuted hidden" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- Catalog Section -->
+        <!-- Catálogo -->
         <section id="catalog-section" class="active-view">
             <div class="container-fluid">
-                <!-- Genre Filters for general grids (hidden on home) -->
                 <div class="genre-filters hidden" id="genre-filters">
                     <button class="genre-btn active" data-id="">Todo</button>
                     <button class="genre-btn" data-id="28">Acción</button>
@@ -75,59 +146,46 @@
                     <button class="genre-btn" data-id="878">Ciencia Ficción</button>
                 </div>
 
-                <div id="loading-spinner" class="spinner hidden"></div>
-                
                 <h1 id="grid-title" class="section-title hidden">Catálogo</h1>
-                
-                <!-- Dynamic Content Injection (Rows mapped or Grids mapped here) -->
-                <div id="dynamic-catalog">
-                    <!-- Javascript will inject .row-container or .dynamic-grid based on View -->
-                </div>
-
-                <!-- Paginación dinámica -->
+                <div id="dynamic-catalog"></div>
                 <div id="pagination-container" class="pagination hidden"></div>
             </div>
         </section>
 
-        <!-- Dynamic Player Section -->
+        <!-- Reproductor -->
         <section id="player-section" class="hidden-view">
             <div class="container player-container">
                 <div class="player-header">
                     <button id="back-btn" class="btn-neon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                         Volver
                     </button>
                     <div class="movie-info-header">
                         <h2 id="player-title">Título</h2>
                         <span id="player-release-date" class="badge">2024</span>
                         <span id="player-rating" class="badge-rating">⭐ 8.5</span>
-                        <!-- Universal Trailer Button -->
-                        <button class="hero-btn secondary" id="details-trailer-btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; border-radius: 20px; font-weight: 500;">
-                           🎬 Tráiler
+                        <button class="hero-btn secondary" id="details-trailer-btn" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; border-radius: 4px; font-weight: 500;">
+                            Tráiler
                         </button>
                     </div>
                 </div>
-                
-                <!-- Mandatory empty wrapper as requested -->
+
                 <div class="video-stage" id="video-stage">
                     <div id="video-container" class="video-wrapper"></div>
                     <button id="fullscreen-btn" class="fullscreen-btn" type="button" aria-label="Pantalla completa" title="Pantalla completa">
-                        <svg class="icon-expand" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-                        <svg class="icon-compress hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
+                        <svg class="icon-expand" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                        <svg class="icon-compress hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>
                     </button>
                 </div>
-                
-                <!-- Opciones de Servidor Multilink -->
-                <div class="server-options" id="server-options">
-                    <button class="server-btn active" data-server="1">▶ VidFast</button>
-                    <button class="server-btn" data-server="2">▶ VidLink</button>
-                    <button class="server-btn" data-server="3">▶ AutoEmbed</button>
-                </div>
-                <p class="server-hint">Usa el botón ⛶ abajo a la derecha del video para pantalla completa. El del reproductor interno puede redirigir.</p>
 
-                
+                <div class="server-options" id="server-options">
+                    <button class="server-btn active" data-server="1">Servidor 1</button>
+                    <button class="server-btn" data-server="2">Servidor 2</button>
+                    <button class="server-btn" data-server="3">Servidor 3</button>
+                </div>
+                <p class="server-hint">Si ves muchos anuncios, prueba otro servidor. Los reproductores son gratuitos de terceros y pueden incluir publicidad.</p>
+
                 <div class="player-details">
-                    <!-- Season and Episode Dropdowns (Only visible for TV) -->
                     <div id="tv-controls" class="tv-controls hidden">
                         <div class="select-group">
                             <label for="season-select">Temporada</label>
@@ -138,7 +196,6 @@
                             <select id="episode-select" class="neon-select"></select>
                         </div>
                     </div>
-
                     <h3 class="overview-title">Sinopsis</h3>
                     <p id="player-overview" class="overview-text">Descripción...</p>
                 </div>
@@ -146,25 +203,72 @@
         </section>
     </main>
 
-    <!-- Trailer Modal -->
+    <!-- Modal de detalle -->
+    <div id="detail-modal" class="detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <div class="detail-modal-scroll">
+            <button id="close-detail-btn" class="detail-close-btn" aria-label="Cerrar">&times;</button>
+            <div class="detail-hero" id="detail-backdrop">
+                <div class="detail-hero-gradient"></div>
+                <div class="detail-hero-content container-fluid">
+                    <h1 class="detail-title" id="detail-title">Título</h1>
+                    <div class="detail-actions">
+                        <button class="hero-btn detail-play-btn" id="detail-play-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            Reproducir
+                        </button>
+                        <button class="hero-btn secondary detail-icon-btn" id="detail-trailer-btn" aria-label="Ver tráiler">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                        <button class="hero-btn secondary detail-icon-btn" id="detail-add-list-btn" aria-label="Añadir a Mi Lista">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="detail-body container-fluid">
+                <div id="detail-loading" class="detail-loading hidden">
+                    <div class="detail-skeleton">
+                        <div class="skeleton-line skeleton-line-wide"></div>
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line skeleton-line-short"></div>
+                    </div>
+                </div>
+                <div id="detail-content" class="detail-content">
+                    <div class="detail-info-row" id="detail-info-row"></div>
+                    <div class="detail-columns">
+                        <div class="detail-main">
+                            <p class="detail-overview" id="detail-overview"></p>
+                        </div>
+                        <aside class="detail-sidebar">
+                            <p class="detail-sidebar-item"><span class="detail-label">Elenco:</span> <span id="detail-cast"></span></p>
+                            <p class="detail-sidebar-item"><span class="detail-label">Géneros:</span> <span id="detail-genres"></span></p>
+                            <p class="detail-sidebar-item"><span class="detail-label">Tipo:</span> <span id="detail-type"></span></p>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal tráiler -->
     <div id="trailer-modal" class="trailer-modal hidden">
         <div class="trailer-content">
             <button id="close-modal-btn" class="close-modal-btn">&times;</button>
             <div id="trailer-video-container" class="trailer-wrapper"></div>
-            <!-- Alternativa anti-bloqueo YouTube -->
             <div id="trailer-fallback" class="trailer-fallback hidden"></div>
         </div>
     </div>
 
-    <!-- Footer -->
     <footer>
-        <div class="container-fluid">
-            <p>&copy; 2026 NeonStream - Desarrollado por Angel Andres Espinoza</p>
-            <p class="disclaimer">Este sitio no almacena ningún archivo en su servidor. Todo el contenido es provisto por terceros no afiliados.</p>
+        <div class="container-fluid footer-inner">
+            <div class="footer-logo">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" width="90" height="24">
+            </div>
+            <p>&copy; 2026 Netflix Clone — Proyecto educativo de demostración UI/UX</p>
+            <p class="disclaimer">Este sitio no almacena archivos en su servidor. Todo el contenido es provisto por APIs y servicios de terceros no afiliados a Netflix, Inc.</p>
         </div>
     </footer>
 
     <script src="script.js"></script>
 </body>
 </html>
-
