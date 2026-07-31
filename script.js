@@ -6,7 +6,7 @@
 // Configuration
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqxrydayba.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_BoriF9VG7pT70QcWs_hXXg_r-3qjvpV';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
