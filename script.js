@@ -7,6 +7,7 @@
 // Supabase — URL base del proyecto (sin /rest/v1/)
 const SUPABASE_URL = 'https://hqsphvlzvkjqyxrdayba.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhxc3Bodmx6dmtqcXl4cmRheWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4NjEsImV4cCI6MjEwMTA4Mzg2MX0.pekHsFbDK3XMfOnJDkMuO5TyOl8EwEFOFDVEMQyWxlE';
+const APP_BUILD = '20260731-supabase-url-fix';
 
 /** Limpia la URL: quita espacios, barras finales y /rest/v1/ si se pegó por error */
 function normalizeSupabaseUrl(url) {
@@ -206,8 +207,9 @@ function validateSupabaseConfig() {
 }
 
 function getSupabaseKeyType() {
-    if (SUPABASE_ANON_KEY.startsWith('sb_publishable_')) return 'publishable';
-    if (SUPABASE_ANON_KEY.startsWith('eyJ')) return 'anon-jwt';
+    const key = SUPABASE_ANON_KEY.trim();
+    if (key.startsWith('sb_publishable_')) return 'publishable';
+    if (key.startsWith('eyJ')) return 'anon-jwt';
     return 'desconocido';
 }
 
@@ -515,6 +517,12 @@ function getAuthErrorMessage(err, context = 'auth') {
 }
 
 async function initAuth() {
+    console.info(`[NeonStream] Build ${APP_BUILD}`);
+    console.info('[Supabase] Config activa →', {
+        url: getSupabaseProjectUrl(),
+        keyType: getSupabaseKeyType()
+    });
+
     supabaseClient = initSupabaseClient();
     if (!supabaseClient) {
         showAuthGate();
