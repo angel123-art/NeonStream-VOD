@@ -1,10 +1,58 @@
 .gate {
+  position: relative;
   min-height: 100vh;
-  background: #141414;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #000;
   color: #fff;
 }
 
+.background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.35rem;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.gridReady {
+  opacity: 0.38;
+}
+
+.posterTile {
+  overflow: hidden;
+  background: #141414;
+}
+
+.posterImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .header {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -31,6 +79,8 @@
 }
 
 .hero {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -45,17 +95,21 @@
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 900;
   max-width: 40rem;
+  text-wrap: balance;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.85);
 }
 
 .subtitle {
   font-size: 1.25rem;
-  color: #b3b3b3;
+  color: #e5e5e5;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
 }
 
 .ctaText {
   font-size: 1.125rem;
   color: #fff;
   margin-bottom: 1rem;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.8);
 }
 
 .emailForm {
@@ -101,5 +155,15 @@
 
   &:hover {
     background: #f40612;
+  }
+}
+
+@media (max-width: 767px) {
+  .gridReady {
+    opacity: 0.32;
+  }
+
+  .overlay {
+    background: rgba(0, 0, 0, 0.75);
   }
 }

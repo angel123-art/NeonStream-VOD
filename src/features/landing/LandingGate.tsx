@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { normalizeAuthEmail } from '@/services/auth';
+import { LandingPosterMarquee } from '@/features/landing/LandingPosterMarquee';
 import styles from './LandingGate.module.scss';
 
 const NETFLIX_LOGO =
@@ -18,12 +19,15 @@ export function LandingGate() {
 
   return (
     <div className={styles.gate}>
+      <LandingPosterMarquee />
+
       <header className={styles.header}>
         <img className={styles.logo} src={NETFLIX_LOGO} alt="Netflix" width={167} height={45} />
         <button type="button" className={styles.signInBtn} onClick={() => openAuth('login')}>
           Iniciar sesión
         </button>
       </header>
+
       <section className={styles.hero}>
         <h1 className={styles.title}>Películas y series ilimitadas y mucho más.</h1>
         <p className={styles.subtitle}>Disfruta donde quieras. Cancela cuando quieras.</p>
