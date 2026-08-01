@@ -29,6 +29,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  /* Must stay visible so scaled cards / hover panels are not clipped. */
   overflow: visible;
 
   &:hover .sliderBtn {
@@ -36,35 +37,34 @@
   }
 }
 
+/* No overflow clipping here — horizontal motion is transform-based on .rowTrack.
+   Using overflow-x: auto would force overflow-y clipping in browsers. */
+.viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+}
+
 .rowTrack {
   display: flex;
-  flex: 1;
   gap: 0.35rem;
-  /* Horizontal scroll only — vertical room for scaled hover comes from padding.
-     (Browsers force overflow-y to auto when overflow-x ≠ visible; padding keeps the panel inside the scrollport.) */
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 2.5rem 0 11rem;
-  margin-bottom: -9rem;
-  scroll-behavior: smooth;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  overflow: visible;
+  padding: 1.25rem 0 2.5rem;
+  margin: -1.25rem 0 -1rem;
+  will-change: transform;
+  transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .trendingRow {
   gap: 0.5rem;
   padding: 0.5rem 0 1.5rem;
-  margin-bottom: 0;
+  margin: 0;
 }
 
 .top10Row {
   gap: 0.25rem;
   padding: 1rem 0 2rem;
-  margin-bottom: 0;
+  margin: 0;
   align-items: flex-end;
 }
 
@@ -113,10 +113,22 @@
     }
   }
 
+  /* Native swipe scroll on mobile — hover expand is disabled anyway. */
+  .viewport {
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
   .rowTrack {
     padding: 0.75rem 0 1.5rem;
-    margin-bottom: 0;
-    overflow-x: auto;
+    margin: 0;
+    transform: none !important;
+    transition: none;
   }
 
   .sliderBtn {

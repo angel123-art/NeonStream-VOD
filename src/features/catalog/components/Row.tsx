@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { CatalogRow } from '@/types/catalog';
 import { MovieCard } from './MovieCard';
 import styles from './Row.module.scss';
@@ -8,13 +8,22 @@ interface RowProps {
 }
 
 export function Row({ row }: RowProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
 
   const scroll = (direction: 'left' | 'right') => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = el.clientWidth * 0.75;
-    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    const viewport = viewportRef.current;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
+
+    const amount = viewport.clientWidth * 0.75;
+    const maxOffset = Math.max(0, track.scrollWidth - viewport.clientWidth);
+
+    setOffset((prev) => {
+      const next = direction === 'left' ? prev - amount : prev + amount;
+      return Math.max(0, Math.min(next, maxOffset));
+    });
   };
 
   const rowClass =
@@ -43,15 +52,21 @@ export function Row({ row }: RowProps) {
         >
           &#10094;
         </button>
-        <div className={rowClass} ref={scrollRef}>
-          {row.items.map((item, index) => (
-            <MovieCard
-              key={`${row.id}-${item.id}-${index}`}
-              item={item}
-              variant={row.variant === 'default' ? 'default' : row.variant}
-              rank={row.variant === 'top10' ? index + 1 : undefined}
-            />
-          ))}
+        <div className={styles.viewport} ref={viewportRef}>
+          <div
+            className={rowClass}
+            ref={trackRef}
+            style={{ transform: `translate3d(-${offset}px, 0, 0)` }}
+          >
+            {row.items.map((item, index) => (
+              <MovieCard
+                key={`${row.id}-${item.id}-${index}`}
+                item={item}
+                variant={row.variant === 'default' ? 'default' : row.variant}
+                rank={row.variant === 'top10' ? index + 1 : undefined}
+              />
+            ))}
+          </div>
         </div>
         <button
           type="button"
