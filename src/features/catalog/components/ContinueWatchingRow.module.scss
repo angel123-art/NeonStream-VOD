@@ -1,0 +1,179 @@
+.container {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 2.5rem;
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.track {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 0 0.75rem;
+}
+
+.card {
+  flex: 0 0 calc(100% / 6 - 0.45rem);
+  min-width: 150px;
+  max-width: 220px;
+  scroll-snap-align: start;
+  cursor: pointer;
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+
+  @media (hover: hover) and (min-width: 769px) {
+    transition: transform 0.3s ease;
+
+    &:hover {
+      transform: scale(1.06);
+      z-index: 4;
+
+      .playOverlay {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background: #2f2f2f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.playOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+
+  svg {
+    width: 42px;
+    height: 42px;
+    color: #fff;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+  }
+}
+
+.progressTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.28);
+  z-index: 2;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--netflix-red);
+  box-shadow: 0 0 6px rgba(229, 9, 20, 0.65);
+  transition: width 0.2s ease;
+}
+
+.meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding: 0 0.1rem;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.removeBtn {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(42, 42, 42, 0.9);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(229, 9, 20, 0.85);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .card {
+    flex: 0 0 calc(100% / 3.4 - 0.4rem);
+    min-width: 120px;
+  }
+
+  .playOverlay {
+    opacity: 0.55;
+  }
+
+  .removeBtn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+    margin: -0.65rem -0.35rem 0 0;
+  }
+}

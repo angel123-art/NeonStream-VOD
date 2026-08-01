@@ -1,6 +1,7 @@
 import { Row } from './Row';
 import { MovieGrid } from './MovieGrid';
 import { GenreFilters } from './GenreFilters';
+import { ContinueWatchingRow } from './ContinueWatchingRow';
 import { CATALOG_VIEW_LABELS } from '@/types/catalog';
 import { CatalogRowsSkeleton, MovieGridSkeleton } from '@/components/ui/skeleton/CatalogSkeleton';
 import type { CatalogRow } from '@/types/catalog';
@@ -53,6 +54,7 @@ export function CatalogContent({
   if (catalogView === 'home') {
     return (
       <div className={styles.rows}>
+        <ContinueWatchingRow />
         {homeRows.map((row) => (
           <Row key={row.id} row={row} />
         ))}

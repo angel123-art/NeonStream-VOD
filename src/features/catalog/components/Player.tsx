@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@/store/useAppStore';
+import { useContinueWatchingStore } from '@/store/useContinueWatchingStore';
 import { stopAllCardTrailers } from '@/services/cardTrailerCoordinator';
+import {
+  resolveWatchDurationSeconds,
+  snapshotFromMedia,
+} from '@/services/continueWatching';
 import { buildEmbedUrl, PLAYER_SERVERS } from '@/services/player';
 import { fetchMediaDetails, fetchSeasonEpisodes } from '@/services/tmdb';
 import {
@@ -24,21 +29,55 @@ export function Player() {
   const playerSeason = useAppStore((s) => s.playerSeason);
   const playerEpisode = useAppStore((s) => s.playerEpisode);
   const playerServer = useAppStore((s) => s.playerServer);
+  const playerStartAt = useAppStore((s) => s.playerStartAt);
   const closePlayer = useAppStore((s) => s.closePlayer);
   const setPlayerSeason = useAppStore((s) => s.setPlayerSeason);
   const setPlayerEpisode = useAppStore((s) => s.setPlayerEpisode);
   const setPlayerServer = useAppStore((s) => s.setPlayerServer);
   const openTrailerModal = useAppStore((s) => s.openTrailerModal);
   const cacheMedia = useAppStore((s) => s.cacheMedia);
+  const updateProgress = useContinueWatchingStore((s) => s.updateProgress);
 
   const stageRef = useRef<HTMLDivElement>(null);
+  const sessionStartedAtRef = useRef(0);
+  const durationRef = useRef(0);
+  const lastReportedTimeRef = useRef(0);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [embedUrl, setEmbedUrl] = useState<string | null>(null);
 
+  const media = playerMedia;
+  const type = media ? resolveMediaType(media) : 'movie';
+  const isTv = type === 'tv';
+
+  const reportProgress = useCallback(
+    (currentTime: number, duration: number) => {
+      if (!media) return;
+      const safeDuration = Math.max(duration, durationRef.current, 1);
+      durationRef.current = safeDuration;
+      lastReportedTimeRef.current = currentTime;
+      updateProgress(
+        media.id,
+        currentTime,
+        safeDuration,
+        snapshotFromMedia(media, isTv ? playerSeason : undefined, isTv ? playerEpisode : undefined),
+      );
+    },
+    [media, isTv, playerSeason, playerEpisode, updateProgress],
+  );
+
+  const flushEstimatedProgress = useCallback(() => {
+    if (!media || !sessionStartedAtRef.current) return;
+    const elapsed = (Date.now() - sessionStartedAtRef.current) / 1000;
+    const estimated = Math.min(durationRef.current || Number.POSITIVE_INFINITY, playerStartAt + elapsed);
+    const duration = durationRef.current || resolveWatchDurationSeconds(media, type);
+    reportProgress(Math.max(lastReportedTimeRef.current, estimated), duration);
+  }, [media, playerStartAt, reportProgress, type]);
+
   const handleClose = useCallback(() => {
+    flushEstimatedProgress();
     if (getFullscreenElement()) {
       if (document.exitFullscreen) void document.exitFullscreen();
       else if ((document as Document & { webkitExitFullscreen?: () => void }).webkitExitFullscreen) {
@@ -47,7 +86,7 @@ export function Player() {
     }
     closePlayer();
     setEmbedUrl(null);
-  }, [closePlayer]);
+  }, [closePlayer, flushEstimatedProgress]);
 
   const toggleFullscreen = useCallback(() => {
     const stage = stageRef.current;
@@ -67,14 +106,63 @@ export function Player() {
     }
   }, []);
 
-  const media = playerMedia;
-  const type = media ? resolveMediaType(media) : 'movie';
-  const isTv = type === 'tv';
-
   useEffect(() => {
     if (!playerOpen) return;
     stopAllCardTrailers();
   }, [playerOpen]);
+
+  useEffect(() => {
+    if (!playerOpen || !media) {
+      sessionStartedAtRef.current = 0;
+      durationRef.current = 0;
+      lastReportedTimeRef.current = 0;
+      return;
+    }
+
+    sessionStartedAtRef.current = Date.now();
+    lastReportedTimeRef.current = playerStartAt;
+    durationRef.current = resolveWatchDurationSeconds(media, type);
+
+    if (playerStartAt >= 20) {
+      reportProgress(playerStartAt, durationRef.current);
+    }
+
+    const tickId = window.setInterval(() => {
+      const elapsed = (Date.now() - sessionStartedAtRef.current) / 1000;
+      const estimated = Math.min(durationRef.current, playerStartAt + elapsed);
+      if (estimated >= 20) {
+        reportProgress(estimated, durationRef.current);
+      }
+    }, 15000);
+
+    return () => window.clearInterval(tickId);
+  }, [playerOpen, media, type, playerStartAt, reportProgress]);
+
+  useEffect(() => {
+    if (!playerOpen) return;
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      const payload = data as Record<string, unknown>;
+      const nested = (payload.data && typeof payload.data === 'object'
+        ? payload.data
+        : payload) as Record<string, unknown>;
+
+      const currentTime = Number(nested.currentTime ?? nested.time ?? nested.t ?? NaN);
+      const duration = Number(nested.duration ?? nested.d ?? NaN);
+      if (!Number.isFinite(currentTime) || currentTime < 0) return;
+
+      reportProgress(
+        currentTime,
+        Number.isFinite(duration) && duration > 0 ? duration : durationRef.current,
+      );
+    };
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [playerOpen, reportProgress]);
 
   useEffect(() => {
     if (!playerOpen || !media || !isTv) {
@@ -105,6 +193,9 @@ export function Player() {
       } catch {
         if (!cancelled) setEpisodes([]);
       }
+
+      const runtimeSeconds = resolveWatchDurationSeconds(tvDetails, 'tv');
+      if (runtimeSeconds > 0) durationRef.current = runtimeSeconds;
     };
 
     void loadTvData();
@@ -121,7 +212,7 @@ export function Player() {
     }
 
     setIframeLoading(true);
-    const url = buildEmbedUrl(media.id, type, playerServer, playerSeason, playerEpisode);
+    const url = buildEmbedUrl(media.id, type, playerServer, playerSeason, playerEpisode, playerStartAt);
 
     const timerId = window.setTimeout(() => {
       setEmbedUrl(url);
@@ -129,7 +220,7 @@ export function Player() {
     }, 100);
 
     return () => window.clearTimeout(timerId);
-  }, [playerOpen, media, type, playerServer, playerSeason, playerEpisode]);
+  }, [playerOpen, media, type, playerServer, playerSeason, playerEpisode, playerStartAt]);
 
   useEffect(() => {
     if (!playerOpen) return;
@@ -165,6 +256,9 @@ export function Player() {
   }, [playerOpen, handleClose, toggleFullscreen]);
 
   const handleSeasonChange = async (seasonNum: number) => {
+    flushEstimatedProgress();
+    sessionStartedAtRef.current = Date.now();
+    lastReportedTimeRef.current = 0;
     setPlayerSeason(seasonNum);
     if (!media) return;
     try {
@@ -236,7 +330,11 @@ export function Player() {
               key={id}
               type="button"
               className={playerServer === id ? `${styles.serverBtn} ${styles.serverActive}` : styles.serverBtn}
-              onClick={() => setPlayerServer(id)}
+              onClick={() => {
+                flushEstimatedProgress();
+                sessionStartedAtRef.current = Date.now();
+                setPlayerServer(id);
+              }}
             >
               {label}
             </button>
@@ -270,7 +368,12 @@ export function Player() {
                   id="player-episode"
                   className={styles.select}
                   value={playerEpisode}
-                  onChange={(e) => setPlayerEpisode(Number(e.target.value))}
+                  onChange={(e) => {
+                    flushEstimatedProgress();
+                    sessionStartedAtRef.current = Date.now();
+                    lastReportedTimeRef.current = 0;
+                    setPlayerEpisode(Number(e.target.value));
+                  }}
                 >
                   {episodes.length > 0 ? (
                     episodes.map((ep) => (

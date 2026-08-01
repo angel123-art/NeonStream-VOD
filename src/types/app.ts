@@ -52,6 +52,8 @@ export interface AppStoreState {
   playerSeason: number;
   playerEpisode: number;
   playerServer: PlayerServerId;
+  /** Resume offset in seconds for embed players that support startAt. */
+  playerStartAt: number;
 
   // Trailer modal
   trailerOpen: boolean;
@@ -103,7 +105,7 @@ export interface AppStoreActions {
 
   openPlayer: (
     media: MediaItem | MediaDetails,
-    options?: { season?: number; episode?: number },
+    options?: { season?: number; episode?: number; startAt?: number },
   ) => void;
   closePlayer: () => void;
   setPlayerSeason: (season: number) => void;

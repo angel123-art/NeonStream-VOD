@@ -43,6 +43,7 @@ const initialState: AppStoreState = {
   playerSeason: 1,
   playerEpisode: 1,
   playerServer: '1',
+  playerStartAt: 0,
 
   trailerOpen: false,
   trailerTarget: null,
@@ -170,6 +171,7 @@ export const useAppStore = create<AppStore>()(
       openPlayer: (media, options) => {
         const season = options?.season ?? 1;
         const episode = options?.episode ?? 1;
+        const startAt = Math.max(0, options?.startAt ?? 0);
         set(
           {
             playerOpen: true,
@@ -177,6 +179,7 @@ export const useAppStore = create<AppStore>()(
             playerSeason: season,
             playerEpisode: episode,
             playerServer: '1',
+            playerStartAt: startAt,
             detailOpen: false,
             detailMedia: null,
           },
@@ -193,16 +196,17 @@ export const useAppStore = create<AppStore>()(
             playerSeason: 1,
             playerEpisode: 1,
             playerServer: '1',
+            playerStartAt: 0,
           },
           false,
           'closePlayer',
         ),
 
       setPlayerSeason: (season: number) =>
-        set({ playerSeason: season, playerEpisode: 1 }, false, 'setPlayerSeason'),
+        set({ playerSeason: season, playerEpisode: 1, playerStartAt: 0 }, false, 'setPlayerSeason'),
 
       setPlayerEpisode: (episode: number) =>
-        set({ playerEpisode: episode }, false, 'setPlayerEpisode'),
+        set({ playerEpisode: episode, playerStartAt: 0 }, false, 'setPlayerEpisode'),
 
       setPlayerServer: (server) => set({ playerServer: server }, false, 'setPlayerServer'),
 

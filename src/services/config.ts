@@ -111,6 +111,7 @@ export const HERO_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/original';
 export const LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 export const HOME_REFRESH_MS = 20 * 60 * 1000;
 export const MY_LIST_KEY = 'netflix_my_list';
+export const CONTINUE_WATCHING_KEY = 'netflix_continue_watching';
 export const PROFILE_SESSION_KEY = 'netflix_active_profile';
 export const PROFILE_LOCAL_KEY = 'netflix_active_profile_v1';
 export const MAX_PROFILES = 5;
