@@ -1,0 +1,153 @@
+/** NeonStream-VOD — navbar.css */
+/* Netflix Logo */
+.netflix-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: opacity var(--transition-speed);
+}
+
+.netflix-logo:hover {
+    opacity: 0.85;
+}
+
+.netflix-icon {
+    width: 28px;
+    height: 28px;
+    display: none;
+    object-fit: contain;
+}
+
+.netflix-wordmark {
+    width: clamp(80px, 10vw, 110px);
+    height: auto;
+    object-fit: contain;
+}
+
+@media (max-width: 768px) {
+    .netflix-icon {
+        display: block;
+    }
+    .netflix-wordmark {
+        display: none;
+    }
+}
+
+.section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    margin-top: 0;
+    padding-left: 0;
+    border-left: none;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+.section-title.hidden {
+    display: none;
+}
+
+/* Navbar — fixed, transparent over hero */
+.navbar {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    transition: background var(--transition-speed);
+}
+
+.navbar.scrolled {
+    background: #141414;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+}
+
+.nav-container {
+    width: 100%;
+    min-height: var(--navbar-height);
+    padding: 0.75rem 4%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: nowrap;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.main-nav {
+    display: flex;
+    gap: 1rem;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.main-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-link {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-family: inherit;
+    font-weight: 400;
+    cursor: pointer;
+    transition: color var(--transition-speed);
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 0.25rem 0;
+}
+
+.nav-link:hover {
+    color: #b3b3b3;
+    text-shadow: none;
+}
+
+.nav-link.active {
+    color: var(--text-primary);
+    font-weight: 700;
+    text-shadow: none;
+}
+
+/* Nav right — search, notifications, avatar */
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.nav-icon-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity var(--transition-speed), transform var(--transition-speed);
+}
+
+.nav-icon-btn:hover {
+    opacity: 0.7;
+    transform: scale(1.05);
+}

@@ -1,0 +1,105 @@
+.gate {
+  min-height: 100vh;
+  background: #141414;
+  color: #fff;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 4%;
+}
+
+.logo {
+  height: 45px;
+  width: auto;
+}
+
+.signInBtn {
+  background: #e50914;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover {
+    background: #f40612;
+  }
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  text-align: center;
+  padding: 2rem 4%;
+  gap: 1rem;
+}
+
+.title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900;
+  max-width: 40rem;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: #b3b3b3;
+}
+
+.ctaText {
+  font-size: 1.125rem;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.emailForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  width: 100%;
+  max-width: 40rem;
+}
+
+.emailInput {
+  flex: 1 1 14rem;
+  min-width: 0;
+  background: rgba(22, 22, 22, 0.7);
+  border: 1px solid rgba(128, 128, 128, 0.7);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+  outline: none;
+
+  &:focus {
+    border-color: #fff;
+    background: rgba(22, 22, 22, 0.9);
+  }
+}
+
+.arrow {
+  margin-left: 0.25rem;
+}
+
+.ctaBtn {
+  flex: 0 0 auto;
+  background: #e50914;
+  color: #fff;
+  border: none;
+  padding: 0.85rem 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+
+  &:hover {
+    background: #f40612;
+  }
+}
