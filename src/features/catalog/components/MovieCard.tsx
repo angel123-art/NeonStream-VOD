@@ -19,6 +19,34 @@ interface MovieCardProps {
   rank?: number;
 }
 
+/** Shared viewBox so ranks 1–10 render at identical visual scale (Netflix Top 10). */
+function Top10Rank({ rank }: { rank: number }) {
+  return (
+    <span className={styles.top10Rank} aria-hidden="true">
+      <svg
+        className={styles.top10RankSvg}
+        viewBox="0 0 120 140"
+        preserveAspectRatio="xMaxYMax meet"
+        focusable="false"
+      >
+        <text
+          className={styles.top10RankText}
+          x="118"
+          y="128"
+          textAnchor="end"
+          fill="#141414"
+          stroke="#b3b3b3"
+          strokeWidth="5"
+          strokeLinejoin="round"
+          paintOrder="stroke fill"
+        >
+          {rank}
+        </text>
+      </svg>
+    </span>
+  );
+}
+
 /** Keep expanded cards inside the viewport instead of causing horizontal page scroll. */
 function resolveHoverEdge(el: HTMLElement): HoverEdge {
   const rect = el.getBoundingClientRect();
@@ -106,7 +134,7 @@ export function MovieCard({ item, variant = 'default', rank }: MovieCardProps) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <span className={styles.top10Rank} aria-hidden="true">{rank}</span>
+        <Top10Rank rank={rank} />
         <div className={styles.top10Poster}>
           <img
             className={hoverTrailer.playing ? styles.posterHidden : undefined}

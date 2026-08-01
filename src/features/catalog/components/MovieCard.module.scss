@@ -248,11 +248,13 @@
   text-overflow: ellipsis;
 }
 
-/* Top 10 variant */
+/* Top 10 variant — fixed slots so 1 and 10 share identical scale */
 .top10Item {
-  flex: 0 0 calc(100% / 6 - 0.5rem);
-  min-width: 155px;
-  max-width: 220px;
+  flex: 0 0 12rem;
+  width: 12rem;
+  min-width: 12rem;
+  max-width: 12rem;
+  flex-shrink: 0;
   display: flex;
   align-items: flex-end;
   cursor: pointer;
@@ -269,22 +271,45 @@
 }
 
 .top10Rank {
-  font-size: clamp(4rem, 8vw, 7rem);
-  font-weight: 900;
-  line-height: 0.85;
-  color: #4d4d4d;
-  text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
-  margin-right: -0.35rem;
+  flex: 0 0 5.25rem;
+  width: 5.25rem;
+  min-width: 5.25rem;
+  height: 7.25rem;
+  flex-shrink: 0;
+  display: block;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
   user-select: none;
+  overflow: visible;
+}
+
+.top10RankSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.top10RankText {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  font-size: 120px;
+  font-weight: 400;
 }
 
 .top10Poster {
   position: relative;
-  flex: 1;
+  flex: 0 0 8rem;
+  width: 8rem;
+  min-width: 8rem;
+  flex-shrink: 0;
   aspect-ratio: 2 / 3;
+  margin-left: -1.5rem;
   border-radius: 4px;
   overflow: hidden;
   background: #2f2f2f;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 
   img {
     width: 100%;
@@ -318,7 +343,23 @@
   }
 
   .top10Item {
-    flex: 0 0 calc(100% / 3.5 - 0.5rem);
-    min-width: 130px;
+    flex: 0 0 9.5rem;
+    width: 9.5rem;
+    min-width: 9.5rem;
+    max-width: 9.5rem;
+  }
+
+  .top10Rank {
+    flex-basis: 4rem;
+    width: 4rem;
+    min-width: 4rem;
+    height: 5.75rem;
+  }
+
+  .top10Poster {
+    flex-basis: 6.25rem;
+    width: 6.25rem;
+    min-width: 6.25rem;
+    margin-left: -1rem;
   }
 }
