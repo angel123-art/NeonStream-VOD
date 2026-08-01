@@ -60,12 +60,15 @@
   width: 28px;
   height: 28px;
   display: none;
+  flex-shrink: 0;
   object-fit: contain;
 }
 
 .brandWordmark {
   width: clamp(80px, 10vw, 110px);
   height: auto;
+  display: block;
+  flex-shrink: 0;
   object-fit: contain;
 }
 
@@ -144,6 +147,10 @@
 @media (max-width: 768px) {
   .brandIcon {
     display: block;
+    opacity: 1;
+    visibility: visible;
+    width: 28px;
+    height: 28px;
   }
 
   .brandWordmark {
@@ -156,6 +163,15 @@
 
   .mainWithHero {
     margin-top: -4rem;
+  }
+
+  .navLeft {
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .brand {
+    flex-shrink: 0;
   }
 }
 

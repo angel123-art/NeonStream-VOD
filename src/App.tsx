@@ -1,4 +1,4 @@
-import { useAppPhase } from '@/store/useAppStore';
+import { useAppPhase } from './store/useAppStore';
 import { useAuthBootstrap } from '@/hooks/useAuthBootstrap';
 import { useProfilePersistence } from '@/hooks/useProfilePersistence';
 import { AppBootLoader } from '@/components/ui/AppBootLoader';

@@ -7,10 +7,28 @@ import { NotificationsPanel } from './NotificationsPanel';
 import layoutStyles from '../MainCatalog.module.scss';
 import searchStyles from './CatalogNavbar.module.scss';
 
-const NETFLIX_N_LOGO =
-  'https://upload.wikimedia.org/wikipedia/commons/0/0c/Netflix_2015_N_logo.svg';
 const NETFLIX_WORDMARK =
   'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg';
+
+/** Inline N mark — always renders on mobile (no external CDN dependency). */
+function NetflixNLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      width={28}
+      height={28}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="#e50914"
+        d="M96 32h86.4l147.2 288.5V32H416v448h-86.4L182.4 191.5V480H96V32z"
+      />
+    </svg>
+  );
+}
 
 const NAV_VIEWS: { id: CatalogView; label: string }[] = [
   { id: 'home', label: 'Inicio' },
@@ -60,7 +78,7 @@ export function CatalogNavbar({ scrolled }: CatalogNavbarProps) {
             onClick={() => handleNavClick('home')}
             aria-label="Netflix Inicio"
           >
-            <img className={layoutStyles.brandIcon} src={NETFLIX_N_LOGO} alt="" width={28} height={28} />
+            <NetflixNLogo className={layoutStyles.brandIcon} />
             <img className={layoutStyles.brandWordmark} src={NETFLIX_WORDMARK} alt="Netflix" width={110} height={30} />
             {isKids && <span className={layoutStyles.kidsLabel}>Kids</span>}
           </button>
