@@ -4,15 +4,58 @@
   overflow: visible;
   cursor: pointer;
   position: relative;
+  z-index: 1;
+  transform-origin: center center;
   transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), z-index 0s 0.15s;
   flex: 0 0 calc(100% / 6 - 0.35rem);
   min-width: 150px;
   max-width: 240px;
 
-  &:hover {
+  &[data-edge='left'] {
+    transform-origin: left center;
+  }
+
+  &[data-edge='right'] {
+    transform-origin: right center;
+  }
+}
+
+@media (hover: hover) and (min-width: 769px) {
+  .card:hover,
+  .card.playingTrailer {
     transform: scale(1.15) translateY(-8px);
-    z-index: 20;
+    z-index: 50;
     transition-delay: 0.15s;
+  }
+
+  .card.playingTrailer {
+    transform: scale(1.18) translateY(-10px);
+  }
+
+  .card:hover .posterContainer,
+  .card.playingTrailer .posterContainer {
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.75),
+      0 4px 16px rgba(0, 0, 0, 0.55);
+
+    img {
+      transform: scale(1.02);
+    }
+  }
+
+  .card:hover .playOverlay {
+    opacity: 1;
+  }
+
+  .card:hover .hoverPanel,
+  .card.playingTrailer .hoverPanel {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    box-shadow:
+      0 18px 48px rgba(0, 0, 0, 0.85),
+      0 6px 20px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -23,22 +66,13 @@
   border-radius: var(--border-radius);
   background: #2f2f2f;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 0.35s ease;
+  transition: box-shadow 0.35s ease, border-radius 0.35s ease;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.4s ease;
-  }
-}
-
-.card:hover .posterContainer {
-  box-shadow: var(--card-shadow);
-  border-radius: var(--border-radius) var(--border-radius) 0 0;
-
-  img {
-    transform: scale(1.02);
   }
 }
 
@@ -58,10 +92,6 @@
     color: #fff;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
   }
-}
-
-.card:hover .playOverlay {
-  opacity: 1;
 }
 
 .playingTrailer .playOverlay {
@@ -99,15 +129,17 @@
   opacity: 0;
   visibility: hidden;
   transform: translateY(-8px);
-  transition: opacity 0.25s ease, visibility 0.25s, transform 0.25s ease;
-  box-shadow: var(--card-shadow);
-  z-index: 21;
+  transition: opacity 0.25s ease, visibility 0.25s, transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 51;
+  pointer-events: none;
 }
 
-.card:hover .hoverPanel {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
+@media (hover: hover) and (min-width: 769px) {
+  .card:hover .hoverPanel,
+  .card.playingTrailer .hoverPanel {
+    pointer-events: auto;
+  }
 }
 
 .cardActions {
@@ -179,6 +211,8 @@
   border-radius: 4px;
   overflow: hidden;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
   transition: transform 0.3s ease;
 
   .posterContainer {
@@ -186,9 +220,11 @@
     border-radius: 4px;
   }
 
-  &:hover {
-    transform: scale(1.08);
-    z-index: 15;
+  @media (hover: hover) and (min-width: 769px) {
+    &:hover {
+      transform: scale(1.08);
+      z-index: 50;
+    }
   }
 }
 
@@ -220,11 +256,15 @@
   display: flex;
   align-items: flex-end;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
   transition: transform 0.3s ease;
 
-  &:hover {
-    transform: scale(1.06);
-    z-index: 12;
+  @media (hover: hover) and (min-width: 769px) {
+    &:hover {
+      transform: scale(1.06);
+      z-index: 50;
+    }
   }
 }
 
@@ -280,11 +320,5 @@
   .top10Item {
     flex: 0 0 calc(100% / 3.5 - 0.5rem);
     min-width: 130px;
-  }
-}
-
-@media (max-width: 480px) {
-  .card:hover {
-    transform: scale(1.08) translateY(-4px);
   }
 }

@@ -2,12 +2,19 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.5rem;
-  padding: 1rem 0;
+  padding: 1rem 0 8rem;
+  margin-bottom: -6rem;
+  overflow: visible;
 
   article {
     flex: auto;
     max-width: none;
     min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1rem 0;
+    margin-bottom: 0;
   }
 }
 

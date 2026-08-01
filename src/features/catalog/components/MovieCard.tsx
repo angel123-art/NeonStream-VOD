@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { useCardHoverTrailer } from '@/hooks/useCardHoverTrailer';
 import { stopAllCardTrailers } from '@/services/cardTrailerCoordinator';
@@ -11,13 +11,27 @@ import {
 import { buildTmdbImageUrl } from '@/services/tmdb';
 import styles from './MovieCard.module.scss';
 
+type HoverEdge = 'left' | 'right' | 'center';
+
 interface MovieCardProps {
   item: MediaItem;
   variant?: 'default' | 'trending' | 'top10';
   rank?: number;
 }
 
+/** Keep expanded cards inside the viewport instead of causing horizontal page scroll. */
+function resolveHoverEdge(el: HTMLElement): HoverEdge {
+  const rect = el.getBoundingClientRect();
+  const edgeGuard = Math.min(72, window.innerWidth * 0.08);
+  if (rect.left < edgeGuard) return 'left';
+  if (rect.right > window.innerWidth - edgeGuard) return 'right';
+  return 'center';
+}
+
 export function MovieCard({ item, variant = 'default', rank }: MovieCardProps) {
+  const cardRef = useRef<HTMLElement>(null);
+  const [hoverEdge, setHoverEdge] = useState<HoverEdge>('center');
+
   const myList = useAppStore((s) => s.myList);
   const toggleMyListItem = useAppStore((s) => s.toggleMyListItem);
   const openDetailModal = useAppStore((s) => s.openDetailModal);
@@ -65,17 +79,32 @@ export function MovieCard({ item, variant = 'default', rank }: MovieCardProps) {
     });
   };
 
+  const handleMouseEnter = () => {
+    if (cardRef.current) {
+      setHoverEdge(resolveHoverEdge(cardRef.current));
+    }
+    hoverTrailer.onMouseEnter();
+  };
+
+  const handleMouseLeave = () => {
+    setHoverEdge('center');
+    hoverTrailer.onMouseLeave();
+  };
+
   if (variant === 'top10' && rank) {
     return (
       <article
+        ref={cardRef}
+        data-movie-card
+        data-trailer-playing={hoverTrailer.playing ? 'true' : undefined}
         className={hoverTrailer.playing ? `${styles.top10Item} ${styles.playingTrailer}` : styles.top10Item}
         aria-label={title}
         role="button"
         tabIndex={0}
         onClick={handleOpenDetail}
         onKeyDown={(e) => { if (e.key === 'Enter') handleOpenDetail(); }}
-        onMouseEnter={hoverTrailer.onMouseEnter}
-        onMouseLeave={hoverTrailer.onMouseLeave}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <span className={styles.top10Rank} aria-hidden="true">{rank}</span>
         <div className={styles.top10Poster}>
@@ -107,6 +136,7 @@ export function MovieCard({ item, variant = 'default', rank }: MovieCardProps) {
   if (variant === 'trending') {
     return (
       <article
+        data-movie-card
         className={styles.trendingCard}
         aria-label={title}
         role="button"
@@ -126,14 +156,18 @@ export function MovieCard({ item, variant = 'default', rank }: MovieCardProps) {
 
   return (
     <article
+      ref={cardRef}
+      data-movie-card
+      data-edge={hoverEdge}
+      data-trailer-playing={hoverTrailer.playing ? 'true' : undefined}
       className={hoverTrailer.playing ? `${styles.card} ${styles.playingTrailer}` : styles.card}
       aria-label={title}
       role="button"
       tabIndex={0}
       onClick={handleOpenDetail}
       onKeyDown={(e) => { if (e.key === 'Enter') handleOpenDetail(); }}
-      onMouseEnter={hoverTrailer.onMouseEnter}
-      onMouseLeave={hoverTrailer.onMouseLeave}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className={styles.posterContainer}>
         <img
