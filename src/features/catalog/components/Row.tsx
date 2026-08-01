@@ -7,12 +7,19 @@ interface RowProps {
   row: CatalogRow;
 }
 
+function isMobileViewport(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+}
+
 export function Row({ row }: RowProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
 
   const scroll = (direction: 'left' | 'right') => {
+    /* Desktop-only: mobile relies on native touch scroll (transform is disabled). */
+    if (isMobileViewport()) return;
+
     const viewport = viewportRef.current;
     const track = trackRef.current;
     if (!viewport || !track) return;

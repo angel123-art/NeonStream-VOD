@@ -113,9 +113,26 @@
     }
   }
 
-  /* Native swipe scroll on mobile — hover expand is disabled anyway. */
+  .wrapper {
+    &:hover .sliderBtn {
+      opacity: 0;
+    }
+  }
+
+  /* Hide arrow controls — mobile uses touch / drag scroll only. */
+  .sliderBtn {
+    display: none;
+    pointer-events: none;
+  }
+
+  /* Native horizontal swipe with snap points. */
   .viewport {
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
     -ms-overflow-style: none;
     scrollbar-width: none;
 
@@ -129,11 +146,12 @@
     margin: 0;
     transform: none !important;
     transition: none;
-  }
+    will-change: auto;
 
-  .sliderBtn {
-    opacity: 1;
-    min-width: 32px;
-    font-size: 1.5rem;
+    > * {
+      scroll-snap-align: start;
+      flex-shrink: 0;
+    }
   }
 }
+
