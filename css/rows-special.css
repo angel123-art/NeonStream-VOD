@@ -1,0 +1,235 @@
+/** NeonStream-VOD — rows-special.css */
+/* Trending row — landscape cards like Netflix */
+.row-container.trending-row-container {
+    margin-bottom: 2rem;
+}
+
+.trending-row {
+    gap: 0.5rem;
+    padding: 0.5rem 0 1.5rem;
+}
+
+.trending-card {
+    flex: 0 0 calc(100% / 4.5 - 0.5rem);
+    min-width: 220px;
+    max-width: 320px;
+    border-radius: 4px;
+    overflow: hidden;
+    transform-origin: center center;
+}
+
+.trending-card:hover {
+    transform: scale(1.08);
+    z-index: 15;
+}
+
+.trending-card .poster-container {
+    aspect-ratio: 16 / 9;
+    border-radius: 4px;
+    position: relative;
+}
+
+.trending-title-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2rem 0.75rem 0.65rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.trending-card-title {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.trending-card .play-overlay {
+    display: none;
+}
+
+/* Top 10 row — Netflix ranked posters */
+.row-container.top10-row-container {
+    margin-bottom: 3rem;
+}
+
+.top10-row {
+    gap: 0.25rem;
+    padding: 1rem 0 2rem;
+    align-items: flex-end;
+}
+
+.top10-item {
+    flex: 0 0 calc(100% / 6 - 0.5rem);
+    min-width: 155px;
+    max-width: 220px;
+    display: flex;
+    align-items: flex-end;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.top10-item:hover {
+    transform: scale(1.06);
+    z-index: 15;
+}
+
+.top10-rank {
+    font-family: 'Bebas Neue', 'Inter', sans-serif;
+    font-size: clamp(5rem, 8vw, 9rem);
+    font-weight: 400;
+    line-height: 0.85;
+    color: transparent;
+    -webkit-text-stroke: 3px #595959;
+    letter-spacing: -0.04em;
+    margin-right: -0.35em;
+    margin-bottom: -0.15em;
+    flex-shrink: 0;
+    user-select: none;
+    z-index: 1;
+}
+
+.top10-poster {
+    flex: 1;
+    aspect-ratio: 2 / 3;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #2f2f2f;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.top10-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.top10-item .play-overlay {
+    border-radius: 4px;
+}
+
+.top10-item:hover .play-overlay {
+    opacity: 1;
+}
+
+/* Footer */
+footer {
+    background-color: #000;
+    padding: 3rem 0 2rem;
+    border-top: none;
+    margin-top: auto;
+}
+
+.footer-inner {
+    text-align: center;
+}
+
+.footer-logo img {
+    width: 90px;
+    height: auto;
+    margin-bottom: 1.25rem;
+    opacity: 0.5;
+    filter: grayscale(1);
+}
+
+footer p {
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+}
+
+footer .disclaimer {
+    font-size: 0.75rem;
+    max-width: 600px;
+    margin: 0.5rem auto 0;
+    line-height: 1.5;
+}
+
+.audit-log-btn {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.25rem 0.65rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.28);
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--transition-speed), border-color var(--transition-speed), background var(--transition-speed);
+}
+
+.audit-log-btn:hover {
+    color: rgba(255, 255, 255, 0.55);
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.audit-log-btn:focus-visible {
+    outline: 2px solid rgba(229, 9, 20, 0.55);
+    outline-offset: 2px;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+.pagination.hidden {
+    display: none;
+}
+.page-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 0.45rem 0.9rem;
+    border-radius: 4px;
+    font-family: inherit;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+.page-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+.page-btn.active {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: #000;
+    box-shadow: none;
+}
+
+/* Catalog section spacing — clear fixed navbar */
+#catalog-section.active-view .container-fluid:first-child {
+    padding-top: calc(var(--navbar-height) + 1.25rem);
+}
+
+#catalog-section.has-hero-banner {
+    margin-top: -6rem;
+    position: relative;
+    z-index: 5;
+}
+
+#catalog-section.has-hero-banner .container-fluid:first-child {
+    padding-top: 0;
+}
