@@ -6,6 +6,7 @@ import { HeroSkeleton } from '@/components/ui/skeleton/HeroSkeleton';
 import { CatalogNavbar } from './components/CatalogNavbar';
 import { Hero } from './components/Hero';
 import { CatalogContent } from './components/CatalogContent';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { DetailModal } from './components/DetailModal';
 import { TrailerModal } from './components/TrailerModal';
 import { Player } from './components/Player';
@@ -37,7 +38,7 @@ export function MainCatalog() {
       {showHero && <Hero items={homeData.heroItems} />}
 
       <main className={showHero || showHeroSkeleton ? `${styles.main} ${styles.mainWithHero}` : styles.main}>
-        <div className={`container-fluid ${styles.catalogInner}`}>
+        <div className={`container-fluid ${styles.catalogInner} ${styles.catalogInnerWithMobileNav}`}>
           <CatalogContent
             catalogView={catalogView}
             loading={loading}
@@ -53,6 +54,7 @@ export function MainCatalog() {
         </div>
       </main>
 
+      <MobileBottomNav />
       <DetailModal />
       <TrailerModal />
       <Player />

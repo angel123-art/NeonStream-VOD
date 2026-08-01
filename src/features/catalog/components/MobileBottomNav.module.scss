@@ -1,0 +1,97 @@
+/* Mobile-only floating tab bar — hidden from md (768px) upward. */
+
+.bar {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 110;
+  padding: 0.35rem 0.5rem env(safe-area-inset-bottom, 0px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+}
+
+.list {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.35rem 0.25rem;
+  border: none;
+  border-radius: var(--border-radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: transform 0.1s ease, color 0.1s ease, opacity 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+}
+
+.tabActive {
+  color: var(--text-primary);
+
+  .icon {
+    color: var(--netflix-red);
+  }
+
+  .label {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}

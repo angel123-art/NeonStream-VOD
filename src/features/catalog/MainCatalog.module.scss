@@ -132,6 +132,15 @@
   padding-bottom: 4rem;
 }
 
+/* Clears fixed MobileBottomNav + iOS safe area; no-op from 768px up (nav is display:none). */
+.catalogInnerWithMobileNav {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+
+  @media (min-width: 768px) {
+    padding-bottom: 4rem;
+  }
+}
+
 @media (max-width: 768px) {
   .brandIcon {
     display: block;
